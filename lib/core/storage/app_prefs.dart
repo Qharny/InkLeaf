@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Small key-value settings, loaded once before the app starts.
@@ -14,6 +15,7 @@ class AppPrefs {
   static const _homeGridKey = 'home_grid';
   static const _noteSortKey = 'note_sort';
   static const _recentSearchesKey = 'recent_searches';
+  static const _themeModeKey = 'theme_mode';
   static const _maxRecentSearches = 8;
 
   final SharedPreferences _prefs;
@@ -21,6 +23,20 @@ class AppPrefs {
   bool get onboardingDone => _prefs.getBool(_onboardingDoneKey) ?? false;
 
   Future<void> completeOnboarding() => _prefs.setBool(_onboardingDoneKey, true);
+
+  /// Shows the intro again on the next launch.
+  Future<void> resetOnboarding() => _prefs.setBool(_onboardingDoneKey, false);
+
+  /// Light paper (the default), the night desk, or whatever the system uses.
+  late final ValueNotifier<ThemeMode> themeMode = ValueNotifier(
+    ThemeMode.values.asNameMap()[_prefs.getString(_themeModeKey)] ??
+        ThemeMode.light,
+  );
+
+  Future<void> setThemeMode(ThemeMode mode) {
+    themeMode.value = mode;
+    return _prefs.setString(_themeModeKey, mode.name);
+  }
 
   /// Whether the home screen shows notes as a grid (true) or a list.
   bool get homeGrid => _prefs.getBool(_homeGridKey) ?? true;

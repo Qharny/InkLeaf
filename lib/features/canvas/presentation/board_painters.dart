@@ -156,16 +156,24 @@ class LinksPainter extends CustomPainter {
       old.selectedId != selectedId;
 }
 
+/// The color to paint a stroke saved as [argb]. Ink is stored as
+/// [AppColors.ink] and drawn in the theme's [ink], so it stays visible on
+/// the night desk.
+Color strokeColor(int argb, Color ink) =>
+    argb == AppColors.ink.toARGB32() ? ink : Color(argb);
+
 /// Pen strokes, plus the stroke being drawn right now.
 class StrokesPainter extends CustomPainter {
   const StrokesPainter({
     required this.strokes,
+    required this.ink,
     this.current,
     this.currentColor = AppColors.ink,
     this.currentWidth = 3,
   });
 
   final List<BoardStroke> strokes;
+  final Color ink;
   final List<Offset>? current;
   final Color currentColor;
   final double currentWidth;
@@ -173,17 +181,23 @@ class StrokesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final s in strokes) {
-      _paintStroke(canvas, s.points, Color(s.color), s.width);
+      _paintStroke(canvas, s.points, strokeColor(s.color, ink), s.width);
     }
     final live = current;
     if (live != null && live.isNotEmpty) {
-      _paintStroke(canvas, live, currentColor, currentWidth);
+      _paintStroke(
+        canvas,
+        live,
+        strokeColor(currentColor.toARGB32(), ink),
+        currentWidth,
+      );
     }
   }
 
   @override
   bool shouldRepaint(StrokesPainter old) =>
       old.strokes != strokes ||
+      old.ink != ink ||
       old.current != current ||
       // The live stroke list grows in place while drawing.
       current != null;
@@ -239,7 +253,7 @@ class BoardThumbnailPainter extends CustomPainter {
       _paintStroke(
         canvas,
         s.points,
-        Color(s.color),
+        strokeColor(s.color, ink),
         math.max(s.width, 1 / scale),
       );
     }

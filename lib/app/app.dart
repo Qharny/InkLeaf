@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/storage/app_prefs.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
@@ -22,13 +23,16 @@ class _InkleafAppState extends State<InkleafApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp.router(
-      title: 'Inkleaf',
-      debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
-      darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.light,
-      routerConfig: _router,
+    return ValueListenableBuilder(
+      valueListenable: AppPrefs.instance.themeMode,
+      builder: (context, themeMode, _) => MaterialApp.router(
+        title: 'Inkleaf',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: themeMode,
+        routerConfig: _router,
+      ),
     );
   }
 }

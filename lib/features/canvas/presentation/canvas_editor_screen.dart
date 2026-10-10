@@ -625,6 +625,7 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
                     child: CustomPaint(
                       painter: StrokesPainter(
                         strokes: _board.strokes,
+                        ink: scheme.onSurface,
                         current: _drawing,
                         currentColor: _penColor,
                         currentWidth: _penWidth,
@@ -725,7 +726,10 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
             children: [
               for (final color in _penColors)
                 _Swatch(
-                  color: color,
+                  color: strokeColor(
+                    color.toARGB32(),
+                    Theme.of(context).colorScheme.onSurface,
+                  ),
                   selected: color == _penColor,
                   onTap: () => setState(() => _penColor = color),
                 ),
@@ -748,7 +752,10 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
                     width: 22,
                     height: width + 1,
                     decoration: BoxDecoration(
-                      color: _penColor,
+                      color: strokeColor(
+                        _penColor.toARGB32(),
+                        Theme.of(context).colorScheme.onSurface,
+                      ),
                       borderRadius: BorderRadius.circular(width),
                     ),
                   ),

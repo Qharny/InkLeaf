@@ -11,6 +11,7 @@ import '../features/notes/presentation/note_editor_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
@@ -159,7 +160,7 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.settings,
         parentNavigatorKey: rootKey,
-        builder: (_, _) => const PlaceholderScreen(title: 'Settings'),
+        builder: (_, _) => const SettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.trash,

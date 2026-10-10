@@ -447,4 +447,35 @@ void main() {
       expect(find.text('Temp'), findsOneWidget);
     });
   });
+
+  group('settings', () {
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('switches to the night theme and remembers it', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openSettings(tester);
+      await tester.tap(find.text('Night'));
+      await tester.pumpAndSettle();
+      expect(
+        Theme.of(tester.element(find.text('Night'))).brightness,
+        Brightness.dark,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('theme_mode'), 'dark');
+    });
+
+    testWidgets('replay the intro', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openSettings(tester);
+      await tester.tap(find.text('Replay the intro'));
+      await tester.pumpAndSettle();
+      expect(find.text('in ink'), findsOneWidget);
+      expect(AppPrefs.instance.onboardingDone, isFalse);
+    });
+  });
 }
