@@ -40,3 +40,13 @@ String greeting({DateTime? now}) {
   if (hour < 17) return 'Good afternoon';
   return 'Good evening';
 }
+
+/// "0:07", "3:42", "1:02:05".
+String formatDuration(Duration d) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  final minutes = d.inMinutes.remainder(60),
+      seconds = d.inSeconds.remainder(60);
+  return d.inHours > 0
+      ? '${d.inHours}:${two(minutes)}:${two(seconds)}'
+      : '$minutes:${two(seconds)}';
+}

@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_note/core/storage/audio_store.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
+import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final t = DateTime(2026, 1, 1);
@@ -39,5 +43,45 @@ void main() {
     final old = Note(id: 'o', title: 'x', createdAt: t, updatedAt: t).toJson()
       ..remove('sketch');
     expect(Note.fromJson(old).sketch, isEmpty);
+  });
+
+  test('audio survives a JSON round trip and names the note', () {
+    final note = Note(
+      id: 'v',
+      audio: const NoteAudio(fileName: 'voice_1.m4a', durationMs: 4200),
+      createdAt: t,
+      updatedAt: t,
+    );
+    expect(note.isEmpty, isFalse);
+    expect(note.displayTitle, 'Voice note');
+    final back = Note.fromJson(
+      (jsonDecode(jsonEncode(note.toJson())) as Map).cast<String, Object?>(),
+    );
+    expect(back.audio!.fileName, 'voice_1.m4a');
+    expect(back.audio!.duration, const Duration(milliseconds: 4200));
+  });
+
+  test('deleting a note for good deletes its recording', () async {
+    SharedPreferences.setMockInitialValues({});
+    await NotesRepository.init();
+    AudioStore.directory = Directory.systemTemp.createTempSync('inkleaf_t');
+    final file = File(AudioStore.pathOf('voice_2.m4a'))..writeAsStringSync('x');
+    final repo = NotesRepository.instance
+      ..save(
+        Note(
+          id: 'v',
+          audio: const NoteAudio(fileName: 'voice_2.m4a', durationMs: 1),
+          createdAt: t,
+          updatedAt: t,
+        ),
+      );
+
+    repo.moveToTrash('v');
+    expect(file.existsSync(), isTrue, reason: 'trash keeps the audio');
+    repo.emptyTrash();
+    for (var i = 0; i < 20 && file.existsSync(); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+    expect(file.existsSync(), isFalse);
   });
 }

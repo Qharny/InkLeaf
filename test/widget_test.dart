@@ -1,15 +1,18 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_note/app/app.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
+import 'package:my_note/core/storage/audio_store.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
+import 'package:my_note/features/record/data/voice_recorder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> startApp(
@@ -22,6 +25,7 @@ Future<void> startApp(
     'notes': jsonEncode([for (final n in notes) n.toJson()]),
   });
   await AppPrefs.init();
+  AudioStore.directory = Directory.systemTemp.createTempSync('inkleaf_audio');
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
@@ -546,4 +550,132 @@ void main() {
       expect(NotesRepository.instance.byId('a')!.sketch, isEmpty);
     });
   });
+
+  group('record', () {
+    tearDown(() => VoiceRecorder.create = _FakeRecorder.new);
+    setUp(() => VoiceRecorder.create = _FakeRecorder.new);
+
+    Future<void> openRecorder(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Record'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> startRecording(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Start recording'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('record, stop and save makes a voice note', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      expect(find.text('Tap to start recording'), findsOneWidget);
+
+      await startRecording(tester);
+      expect(find.text('Recording…'), findsOneWidget);
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      expect(find.text('Paused'), findsOneWidget);
+      await tester.tap(find.byTooltip('Resume'));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+      final note = NotesRepository.instance.notes.single;
+      expect(note.audio, isNotNull);
+      expect(
+        File(AudioStore.pathOf(note.audio!.fileName)).existsSync(),
+        isTrue,
+      );
+      expect(find.byTooltip('Play recording'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Voice note'), findsOneWidget);
+    });
+
+    testWidgets('a refused microphone explains and offers to retry', (
+      tester,
+    ) async {
+      VoiceRecorder.create = () => _FakeRecorder(allowed: false);
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await tester.tap(find.byTooltip('Start recording'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('needs microphone access'), findsOneWidget);
+      expect(find.byTooltip('Try again'), findsOneWidget);
+    });
+
+    testWidgets('discard drops the recording', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Discard'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+      expect(AudioStore.directory.listSync(), isEmpty);
+    });
+
+    testWidgets('removing the only recording empties and discards the note', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Remove recording'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Play recording'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+    });
+  });
+}
+
+/// Writes a placeholder file instead of using the microphone.
+class _FakeRecorder implements VoiceRecorder {
+  _FakeRecorder({this.allowed = true});
+
+  final bool allowed;
+  String? _path;
+
+  @override
+  Future<bool> hasPermission() async => allowed;
+
+  @override
+  Future<void> start(String path) async {
+    File(path).writeAsStringSync('audio');
+    _path = path;
+  }
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> resume() async {}
+
+  @override
+  Future<String?> stop() async => _path;
+
+  @override
+  Future<void> cancel() async {
+    final path = _path;
+    if (path != null) File(path).deleteSync();
+    _path = null;
+  }
+
+  @override
+  Stream<double> levels() => Stream.fromIterable(const [0.2, 0.7, 0.4]);
+
+  @override
+  Future<void> dispose() async {}
 }

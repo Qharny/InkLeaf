@@ -5,6 +5,7 @@ import '../../../app/router.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../canvas/domain/board.dart';
 import '../../canvas/presentation/board_painters.dart';
+import '../../../core/storage/audio_store.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../collections/presentation/collection_widgets.dart';
@@ -12,6 +13,7 @@ import '../../home/presentation/home_screen.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
 import 'note_card.dart';
+import 'voice_note_player.dart';
 
 /// Writes a new note, or edits the note with [noteId].
 ///
@@ -114,6 +116,29 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
         .replaceAll(RegExp(r'\s+'), '-');
     if (clean == null || clean.isEmpty || _note.tags.contains(clean)) return;
     _update(_note.copyWith(tags: [..._note.tags, clean]), edited: true);
+  }
+
+  Future<void> _removeRecording(NoteAudio audio) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove this recording?'),
+        content: const Text('The audio is deleted for good.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+    AudioStore.delete(audio.fileName);
+    _update(_note.copyWith(audio: () => null), edited: true);
   }
 
   Future<void> _editSketch() async {
@@ -240,6 +265,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ],
             ),
+            if (_note.audio case final audio?)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: VoiceNotePlayer(
+                  key: ValueKey(audio.fileName),
+                  audio: audio,
+                  onRemove: () => _removeRecording(audio),
+                ),
+              ),
             if (_note.sketch.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 12),

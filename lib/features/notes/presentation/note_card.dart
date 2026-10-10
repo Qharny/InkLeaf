@@ -98,6 +98,29 @@ class NoteCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (note.audio case final audio?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.mic_none_rounded,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        formatDuration(audio.duration),
+                        style: text.labelMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        semanticsLabel:
+                            'Recording, ${formatDuration(audio.duration)}',
+                      ),
+                    ],
+                  ),
+                ),
               if (preview.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 if (fixedHeight) Flexible(child: previewText) else previewText,

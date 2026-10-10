@@ -68,5 +68,7 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
-	</dict>
+		<key>NSMicrophoneUsageDescription</key>
+	<string>Inkleaf uses the microphone to record voice notes.</string>
+</dict>
 </plist>

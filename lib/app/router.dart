@@ -13,6 +13,7 @@ import '../features/notes/presentation/note_editor_screen.dart';
 import '../features/notes/presentation/sketch_pad_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/record/presentation/record_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -142,12 +143,9 @@ GoRouter createRouter() {
         builder: (_, state) =>
             switch (NoteMode.parse(state.uri.queryParameters['mode'])) {
               NoteMode.draw => const SketchPadScreen(createNote: true),
+              NoteMode.record => const RecordScreen(),
               NoteMode.text => NoteEditorScreen(
                 collectionId: state.uri.queryParameters['collection'],
-              ),
-              final mode => PlaceholderScreen(
-                title: 'New note',
-                subtitle: mode.name,
               ),
             },
       ),

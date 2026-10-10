@@ -2,6 +2,28 @@ import 'package:flutter/foundation.dart';
 
 import '../../canvas/domain/board.dart';
 
+/// A voice recording attached to a note.
+@immutable
+class NoteAudio {
+  const NoteAudio({required this.fileName, required this.durationMs});
+
+  /// File name inside `AudioStore.directory`.
+  final String fileName;
+  final int durationMs;
+
+  Duration get duration => Duration(milliseconds: durationMs);
+
+  Map<String, Object?> toJson() => {
+    'fileName': fileName,
+    'durationMs': durationMs,
+  };
+
+  factory NoteAudio.fromJson(Map<String, Object?> json) => NoteAudio(
+    fileName: json['fileName']! as String,
+    durationMs: json['durationMs'] as int? ?? 0,
+  );
+}
+
 /// A text note. Immutable; edits produce a new copy via [copyWith].
 @immutable
 class Note {
@@ -13,6 +35,7 @@ class Note {
     this.pinned = false,
     this.tags = const [],
     this.sketch = const [],
+    this.audio,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -40,6 +63,9 @@ class Note {
 
   /// A hand drawing, in the sketch pad's coordinates.
   final List<BoardStroke> sketch;
+
+  /// A voice recording, if any.
+  final NoteAudio? audio;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -47,7 +73,10 @@ class Note {
   final DateTime? deletedAt;
 
   bool get isEmpty =>
-      title.trim().isEmpty && body.trim().isEmpty && sketch.isEmpty;
+      title.trim().isEmpty &&
+      body.trim().isEmpty &&
+      sketch.isEmpty &&
+      audio == null;
   bool get inTrash => deletedAt != null;
 
   /// The title, or the first line of the body when there is no title.
@@ -55,6 +84,7 @@ class Note {
     if (title.trim().isNotEmpty) return title.trim();
     final firstLine = body.trim().split('\n').first;
     if (firstLine.isNotEmpty) return firstLine;
+    if (audio != null) return 'Voice note';
     return sketch.isEmpty ? 'Untitled' : 'Sketch';
   }
 
@@ -81,6 +111,7 @@ class Note {
     bool? pinned,
     List<String>? tags,
     List<BoardStroke>? sketch,
+    NoteAudio? Function()? audio,
     DateTime? updatedAt,
     DateTime? Function()? deletedAt,
   }) => Note(
@@ -91,6 +122,7 @@ class Note {
     pinned: pinned ?? this.pinned,
     tags: tags ?? this.tags,
     sketch: sketch ?? this.sketch,
+    audio: audio != null ? audio() : this.audio,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt != null ? deletedAt() : this.deletedAt,
@@ -104,6 +136,7 @@ class Note {
     'pinned': pinned,
     'tags': tags,
     if (sketch.isNotEmpty) 'sketch': [for (final s in sketch) s.toJson()],
+    if (audio != null) 'audio': audio!.toJson(),
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
@@ -120,6 +153,12 @@ class Note {
       for (final s in json['sketch'] as List<Object?>? ?? const [])
         BoardStroke.fromJson((s! as Map).cast<String, Object?>()),
     ],
+    audio: switch (json['audio']) {
+      final Map<Object?, Object?> a => NoteAudio.fromJson(
+        a.cast<String, Object?>(),
+      ),
+      _ => null,
+    },
     createdAt: DateTime.parse(json['createdAt']! as String),
     updatedAt: DateTime.parse(json['updatedAt']! as String),
     deletedAt: switch (json['deletedAt']) {
