@@ -14,17 +14,10 @@ import '../../notes/presentation/note_card.dart';
 import '../data/boards_repository.dart';
 import '../domain/board.dart';
 import 'board_painters.dart';
+import 'pen_tools.dart';
 
 enum _Tool { select, pen, eraser, connect }
 
-const _penColors = [
-  AppColors.ink,
-  AppColors.sageDeep,
-  Color(0xFFC0563B), // terracotta
-  Color(0xFF3F67A8), // blue ink
-  AppColors.pencilDeep,
-];
-const _penWidths = [2.0, 4.0, 8.0];
 const _minScale = 0.25;
 const _maxScale = 2.5;
 const _maxUndo = 100;
@@ -67,8 +60,8 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
   /// Where the eraser last touched, so a fast swipe erases everything in
   /// between instead of skipping over strokes.
   Offset? _lastErase;
-  Color _penColor = _penColors.first;
-  double _penWidth = _penWidths[1];
+  Color _penColor = penColors.first;
+  double _penWidth = penWidths[1];
 
   Size _viewport = Size.zero;
   bool _placed = false;
@@ -682,7 +675,7 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
             ),
           ),
         if (_tool == _Tool.select && hasSelection)
-          _Bar(
+          ToolBar(
             seed: 4,
             children: [
               if (selectedCard != null) ...[
@@ -721,49 +714,18 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
             ],
           ),
         if (_tool == _Tool.pen)
-          _Bar(
+          ToolBar(
             seed: 6,
-            children: [
-              for (final color in _penColors)
-                _Swatch(
-                  color: strokeColor(
-                    color.toARGB32(),
-                    Theme.of(context).colorScheme.onSurface,
-                  ),
-                  selected: color == _penColor,
-                  onTap: () => setState(() => _penColor = color),
-                ),
-              const _BarDivider(),
-              for (final width in _penWidths)
-                IconButton(
-                  tooltip: switch (width) {
-                    2.0 => 'Fine pen',
-                    4.0 => 'Medium pen',
-                    _ => 'Thick pen',
-                  },
-                  isSelected: width == _penWidth,
-                  style: width == _penWidth
-                      ? IconButton.styleFrom(
-                          backgroundColor: AppColors.markerYellow,
-                        )
-                      : null,
-                  onPressed: () => setState(() => _penWidth = width),
-                  icon: Container(
-                    width: 22,
-                    height: width + 1,
-                    decoration: BoxDecoration(
-                      color: strokeColor(
-                        _penColor.toARGB32(),
-                        Theme.of(context).colorScheme.onSurface,
-                      ),
-                      borderRadius: BorderRadius.circular(width),
-                    ),
-                  ),
-                ),
-            ],
+            children: penOptions(
+              context: context,
+              color: _penColor,
+              width: _penWidth,
+              onColor: (c) => setState(() => _penColor = c),
+              onWidth: (w) => setState(() => _penWidth = w),
+            ),
           ),
         const SizedBox(height: 8),
-        _Bar(
+        ToolBar(
           seed: 2,
           children: [
             _toolButton(
@@ -782,7 +744,7 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
               Icons.arrow_right_alt_rounded,
               'Connect cards',
             ),
-            const _BarDivider(),
+            const ToolBarDivider(),
             IconButton(
               tooltip: 'Add sticky note',
               icon: const Icon(Icons.sticky_note_2_outlined),
@@ -799,18 +761,12 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
     );
   }
 
-  Widget _toolButton(_Tool tool, IconData icon, String label) {
-    final selected = _tool == tool;
-    return IconButton(
-      tooltip: label,
-      isSelected: selected,
-      style: selected
-          ? IconButton.styleFrom(backgroundColor: AppColors.markerYellow)
-          : null,
-      icon: Icon(icon),
-      onPressed: () => _setTool(tool),
-    );
-  }
+  Widget _toolButton(_Tool tool, IconData icon, String label) => ToolButton(
+    tooltip: label,
+    selected: _tool == tool,
+    icon: Icon(icon),
+    onPressed: () => _setTool(tool),
+  );
 }
 
 /// A card's face: sticky text, or a live preview of the linked note.
@@ -1042,94 +998,6 @@ class _NotePicker extends StatelessWidget {
               ),
             const SizedBox(height: 8),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A floating, pencil-outlined tool strip.
-class _Bar extends StatelessWidget {
-  const _Bar({required this.children, required this.seed});
-
-  final List<Widget> children;
-  final int seed;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: scheme.surfaceContainerLowest,
-      shape: SketchBorder(
-        side: BorderSide(
-          color: scheme.outline,
-          width: SketchStyles.strokeWidth,
-        ),
-        radius: 22,
-        seed: seed,
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(mainAxisSize: MainAxisSize.min, children: children),
-      ),
-    );
-  }
-}
-
-class _BarDivider extends StatelessWidget {
-  const _BarDivider();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 1.4,
-    height: 28,
-    margin: const EdgeInsets.symmetric(horizontal: 4),
-    color: Theme.of(context).colorScheme.outlineVariant,
-  );
-}
-
-class _Swatch extends StatelessWidget {
-  const _Swatch({
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Pen color',
-      selected: selected,
-      button: true,
-      child: InkResponse(
-        onTap: onTap,
-        radius: 22,
-        child: SizedBox.square(
-          dimension: 44,
-          child: Center(
-            child: Container(
-              width: selected ? 28 : 22,
-              height: selected ? 28 : 22,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: selected
-                    ? Border.all(
-                        color: Theme.of(context).colorScheme.surface,
-                        width: 3,
-                      )
-                    : null,
-                boxShadow: selected
-                    ? [BoxShadow(color: color, spreadRadius: 2)]
-                    : null,
-              ),
-            ),
-          ),
         ),
       ),
     );

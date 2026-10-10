@@ -478,4 +478,72 @@ void main() {
       expect(AppPrefs.instance.onboardingDone, isFalse);
     });
   });
+
+  group('draw', () {
+    Future<void> openDraw(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Draw'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('+ Draw makes a sketch note, opened for titling', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openDraw(tester);
+      expect(find.widgetWithText(AppBar, 'Sketch'), findsOneWidget);
+
+      await tester.dragFrom(const Offset(200, 200), const Offset(150, 80));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      final note = NotesRepository.instance.notes.single;
+      expect(note.sketch, hasLength(1));
+      expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Sketch'), findsOneWidget);
+    });
+
+    testWidgets('leaving an empty sketch pad saves nothing', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openDraw(tester);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+      expect(find.text('Nothing here yet'), findsOneWidget);
+    });
+
+    testWidgets('add a sketch to an existing note, then erase it', (
+      tester,
+    ) async {
+      final t = DateTime(2026, 1, 1);
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [Note(id: 'a', title: 'Plan', createdAt: t, updatedAt: t)],
+      );
+      await tester.tap(find.text('Plan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Sketch'));
+      await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(100, 200), const Offset(200, 0));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.byId('a')!.sketch, hasLength(1));
+
+      await tester.tap(find.bySemanticsLabel('Sketch. Tap to edit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Eraser'));
+      await tester.dragFrom(const Offset(200, 150), const Offset(0, 100));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.byId('a')!.sketch, isEmpty);
+    });
+  });
 }

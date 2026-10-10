@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../app/theme/sketch_styles.dart';
+import '../../canvas/domain/board.dart';
+import '../../canvas/presentation/board_painters.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../collections/presentation/collection_widgets.dart';
@@ -113,6 +116,17 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _update(_note.copyWith(tags: [..._note.tags, clean]), edited: true);
   }
 
+  Future<void> _editSketch() async {
+    final strokes = await context.push<List<BoardStroke>>(
+      AppRoutes.sketchFor(_note.id),
+      extra: _note.sketch,
+    );
+    if (strokes == null || !mounted || identical(strokes, _note.sketch)) {
+      return;
+    }
+    _update(_note.copyWith(sketch: strokes), edited: true);
+  }
+
   void _pickColor() {
     showModalBottomSheet<void>(
       context: context,
@@ -175,6 +189,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               onPressed: _pickColor,
             ),
             IconButton(
+              tooltip: 'Sketch',
+              icon: const Icon(Icons.draw_outlined),
+              onPressed: _editSketch,
+            ),
+            IconButton(
               tooltip: 'Collections',
               icon: const Icon(Icons.collections_bookmark_outlined),
               onPressed: () => showCollectionPicker(context, _note.id),
@@ -221,6 +240,36 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ],
             ),
+            if (_note.sketch.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Semantics(
+                  button: true,
+                  label: 'Sketch. Tap to edit',
+                  child: Material(
+                    color: scheme.surfaceContainerLowest.withValues(alpha: 0.5),
+                    shape: SketchBorder(
+                      side: BorderSide(color: scheme.outline, width: 1.2),
+                      seed: _note.id.hashCode + 1,
+                      passes: 1,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: _editSketch,
+                      child: SizedBox(
+                        height: 220,
+                        width: double.infinity,
+                        child: CustomPaint(
+                          painter: SketchPainter(
+                            strokes: _note.sketch,
+                            ink: scheme.onSurface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             SketchDivider(seed: _note.id.hashCode, color: scheme.outline),
             TextField(
               controller: _body,

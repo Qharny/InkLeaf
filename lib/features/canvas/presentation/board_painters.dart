@@ -203,6 +203,50 @@ class StrokesPainter extends CustomPainter {
       current != null;
 }
 
+/// [strokes] scaled down (never up) to fit, centered. For note sketches.
+class SketchPainter extends CustomPainter {
+  const SketchPainter({required this.strokes, required this.ink});
+
+  final List<BoardStroke> strokes;
+  final Color ink;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (strokes.isEmpty) return;
+    var bounds = strokes.first.bounds;
+    for (final s in strokes.skip(1)) {
+      bounds = bounds.expandToInclude(s.bounds);
+    }
+    const pad = 6.0;
+    final scale = math.min(
+      1.0,
+      math.min(
+        (size.width - pad * 2) / bounds.width,
+        (size.height - pad * 2) / bounds.height,
+      ),
+    );
+    canvas
+      ..save()
+      ..clipRect(Offset.zero & size)
+      ..translate(size.width / 2, size.height / 2)
+      ..scale(scale)
+      ..translate(-bounds.center.dx, -bounds.center.dy);
+    for (final s in strokes) {
+      _paintStroke(
+        canvas,
+        s.points,
+        strokeColor(s.color, ink),
+        math.max(s.width, 1 / scale),
+      );
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(SketchPainter old) =>
+      old.strokes != strokes || old.ink != ink;
+}
+
 /// A scaled-down sketch of a whole board, for the canvas list.
 class BoardThumbnailPainter extends CustomPainter {
   const BoardThumbnailPainter({required this.board, required this.ink});
