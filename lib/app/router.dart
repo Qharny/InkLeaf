@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/widgets/placeholder_screen.dart';
+import '../features/canvas/presentation/canvas_editor_screen.dart';
+import '../features/canvas/presentation/canvas_list_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/notes/presentation/note_editor_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
@@ -87,17 +89,13 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: AppRoutes.canvas,
-                builder: (_, _) => const PlaceholderScreen(
-                  title: 'Think visually',
-                  actions: [SecondaryMenuButton()],
-                ),
+                builder: (_, _) => const CanvasListScreen(),
                 routes: [
                   GoRoute(
                     path: ':canvasId',
                     parentNavigatorKey: rootKey,
-                    builder: (_, state) => PlaceholderScreen(
-                      title: 'Canvas',
-                      subtitle: state.pathParameters['canvasId'],
+                    builder: (_, state) => CanvasEditorScreen(
+                      boardId: state.pathParameters['canvasId']!,
                     ),
                   ),
                 ],
