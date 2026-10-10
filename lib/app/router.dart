@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../core/widgets/app_logo.dart';
 import '../core/widgets/placeholder_screen.dart';
+import '../features/home/presentation/home_screen.dart';
+import '../features/notes/presentation/note_editor_screen.dart';
+import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
@@ -67,12 +69,7 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: AppRoutes.home,
-                builder: (_, _) => const PlaceholderScreen(
-                  title: 'Your desk',
-                  appBarTitle: AppLogo(size: 36, showName: true),
-                  actions: [SecondaryMenuButton()],
-                  subtitle: 'Recent and pinned notes',
-                ),
+                builder: (_, _) => const HomeScreen(),
               ),
             ],
           ),
@@ -135,18 +132,20 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.newNote,
         parentNavigatorKey: rootKey,
-        builder: (_, state) => PlaceholderScreen(
-          title: 'New note',
-          subtitle: NoteMode.parse(state.uri.queryParameters['mode']).name,
-        ),
+        builder: (_, state) =>
+            switch (NoteMode.parse(state.uri.queryParameters['mode'])) {
+              NoteMode.text => const NoteEditorScreen(),
+              final mode => PlaceholderScreen(
+                title: 'New note',
+                subtitle: mode.name,
+              ),
+            },
       ),
       GoRoute(
         path: AppRoutes.note,
         parentNavigatorKey: rootKey,
-        builder: (_, state) => PlaceholderScreen(
-          title: 'Your notebook',
-          subtitle: state.pathParameters['noteId'],
-        ),
+        builder: (_, state) =>
+            NoteEditorScreen(noteId: state.pathParameters['noteId']),
       ),
       GoRoute(
         path: AppRoutes.scan,
@@ -165,7 +164,7 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.trash,
         parentNavigatorKey: rootKey,
-        builder: (_, _) => const PlaceholderScreen(title: 'Trash'),
+        builder: (_, _) => const TrashScreen(),
       ),
     ],
     errorBuilder: (_, state) => PlaceholderScreen(
