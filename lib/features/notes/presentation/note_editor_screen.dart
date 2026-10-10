@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/sketch_styles.dart';
 import '../../../core/utils/relative_time.dart';
+import '../../collections/data/collections_repository.dart';
+import '../../collections/presentation/collection_widgets.dart';
 import '../../home/presentation/home_screen.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
@@ -12,9 +14,12 @@ import 'note_card.dart';
 ///
 /// Changes save as you type. A note left empty is discarded on close.
 class NoteEditorScreen extends StatefulWidget {
-  const NoteEditorScreen({super.key, this.noteId});
+  const NoteEditorScreen({super.key, this.noteId, this.collectionId});
 
   final String? noteId;
+
+  /// For a new note: the collection to file it in once it has content.
+  final String? collectionId;
 
   @override
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
@@ -26,6 +31,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   late final TextEditingController _title;
   late final TextEditingController _body;
   bool _missing = false;
+
+  /// Whether the new note has been added to [NoteEditorScreen.collectionId].
+  bool _filed = false;
 
   bool get _isNew => widget.noteId == null;
 
@@ -54,11 +62,19 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     });
     // Empty notes are not saved; one emptied while editing is removed on
     // close instead, so it doesn't flicker off the desk mid-sentence.
-    if (!_note.isEmpty) _repo.save(_note);
+    if (_note.isEmpty) return;
+    _repo.save(_note);
+    final collectionId = widget.collectionId;
+    if (collectionId != null && !_filed) {
+      _filed = true;
+      CollectionsRepository.instance.addNote(collectionId, _note.id);
+    }
   }
 
   void _onClosed() {
-    if (_note.isEmpty && _repo.byId(_note.id) != null) _repo.delete(_note.id);
+    if (!_note.isEmpty) return;
+    if (_repo.byId(_note.id) != null) _repo.delete(_note.id);
+    CollectionsRepository.instance.setMembership(_note.id, const {});
   }
 
   Future<void> _addTag() async {
@@ -157,6 +173,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               tooltip: 'Color',
               icon: const Icon(Icons.palette_outlined),
               onPressed: _pickColor,
+            ),
+            IconButton(
+              tooltip: 'Collections',
+              icon: const Icon(Icons.collections_bookmark_outlined),
+              onPressed: () => showCollectionPicker(context, _note.id),
             ),
             IconButton(
               tooltip: 'Move to trash',

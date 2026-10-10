@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../core/widgets/placeholder_screen.dart';
 import '../features/canvas/presentation/canvas_editor_screen.dart';
 import '../features/canvas/presentation/canvas_list_screen.dart';
+import '../features/collections/presentation/collection_detail_screen.dart';
+import '../features/collections/presentation/collections_screen.dart';
 import '../features/home/presentation/home_screen.dart';
 import '../features/notes/presentation/note_editor_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
@@ -38,6 +40,10 @@ abstract final class AppRoutes {
   /// New note in a given mode, e.g. `newNoteWith(NoteMode.draw)`.
   static String newNoteWith(NoteMode mode) =>
       mode == NoteMode.text ? newNote : '$newNote?mode=${mode.name}';
+
+  /// New text note that is added to collection [collectionId] once written.
+  static String newNoteIn(String collectionId) =>
+      '$newNote?collection=$collectionId';
 }
 
 /// How a new note opens from the + menu.
@@ -106,16 +112,12 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: AppRoutes.collections,
-                builder: (_, _) => const PlaceholderScreen(
-                  title: 'Collections',
-                  actions: [SecondaryMenuButton()],
-                ),
+                builder: (_, _) => const CollectionsScreen(),
                 routes: [
                   GoRoute(
                     path: ':collectionId',
-                    builder: (_, state) => PlaceholderScreen(
-                      title: 'Collection',
-                      subtitle: state.pathParameters['collectionId'],
+                    builder: (_, state) => CollectionDetailScreen(
+                      collectionId: state.pathParameters['collectionId']!,
                     ),
                   ),
                 ],
@@ -130,7 +132,9 @@ GoRouter createRouter() {
         parentNavigatorKey: rootKey,
         builder: (_, state) =>
             switch (NoteMode.parse(state.uri.queryParameters['mode'])) {
-              NoteMode.text => const NoteEditorScreen(),
+              NoteMode.text => NoteEditorScreen(
+                collectionId: state.uri.queryParameters['collection'],
+              ),
               final mode => PlaceholderScreen(
                 title: 'New note',
                 subtitle: mode.name,

@@ -8,6 +8,7 @@ import 'package:my_note/core/storage/app_prefs.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
+import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,6 +24,7 @@ Future<void> startApp(
   await AppPrefs.init();
   await NotesRepository.init();
   await BoardsRepository.init();
+  await CollectionsRepository.init();
   await tester.pumpWidget(const InkleafApp());
   // Splash animation, its hold, then the fade to the next screen.
   await tester.pump(const Duration(seconds: 2));
@@ -338,6 +340,111 @@ void main() {
       await tester.tap(find.byTooltip('Undo'));
       await tester.pumpAndSettle();
       expect(card().rect.topLeft, start);
+    });
+  });
+
+  group('collections', () {
+    final t = DateTime(2026, 1, 1);
+    final seed = [
+      Note(id: 'p', title: 'Pasta', createdAt: t, updatedAt: t),
+      Note(id: 'q', title: 'Quiz answers', createdAt: t, updatedAt: t),
+    ];
+
+    Future<void> openTab(WidgetTester tester) async {
+      await tester.tap(
+        find.widgetWithText(NavigationDestination, 'Collections'),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('create, add notes, write into it, remove with undo', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true, notes: seed);
+      await openTab(tester);
+      expect(find.text('Your bookshelf'), findsOneWidget);
+
+      await tester.tap(find.text('New collection'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Create'));
+      await tester.pump();
+      expect(find.text('Give it a name'), findsOneWidget);
+      await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Recipes');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(AppBar, 'Recipes'), findsOneWidget);
+      expect(find.text('This notebook is empty'), findsOneWidget);
+
+      await tester.tap(find.text('Add existing notes'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(CheckboxListTile, 'Pasta'));
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pasta'), findsOneWidget);
+      expect(find.text('Quiz answers'), findsNothing);
+      expect(find.text('1 note'), findsOneWidget);
+
+      await tester.tap(find.text('New note'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Soup');
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Soup'), findsOneWidget);
+      expect(find.text('2 notes'), findsOneWidget);
+
+      await tester.longPress(find.text('Pasta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove from Recipes'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pasta'), findsNothing);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pasta'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Recipes'), findsOneWidget);
+      expect(find.text('2 notes'), findsOneWidget);
+    });
+
+    testWidgets('note editor files a note into a new collection', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true, notes: seed);
+      await tester.tap(find.text('Pasta'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Collections'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('New collection'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Food');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(
+        CollectionsRepository.instance.containing('p').map((c) => c.name),
+        ['Food'],
+      );
+    });
+
+    testWidgets('delete a collection from its page, then undo', (tester) async {
+      await startApp(tester, onboardingDone: true, notes: seed);
+      await openTab(tester);
+      await tester.tap(find.text('New collection'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Temp');
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete collection'));
+      await tester.pumpAndSettle();
+      expect(find.text('Your bookshelf'), findsOneWidget);
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Temp'), findsOneWidget);
     });
   });
 }

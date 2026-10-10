@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app/app.dart';
 import 'core/storage/app_prefs.dart';
 import 'features/canvas/data/boards_repository.dart';
+import 'features/collections/data/collections_repository.dart';
 import 'features/notes/data/notes_repository.dart';
 
 Future<void> main() async {
@@ -10,5 +11,6 @@ Future<void> main() async {
   await AppPrefs.init();
   await NotesRepository.init();
   await BoardsRepository.init();
+  await CollectionsRepository.init();
   runApp(const InkleafApp());
 }
