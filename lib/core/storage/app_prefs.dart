@@ -13,6 +13,8 @@ class AppPrefs {
   static const _onboardingDoneKey = 'onboarding_done';
   static const _homeGridKey = 'home_grid';
   static const _noteSortKey = 'note_sort';
+  static const _recentSearchesKey = 'recent_searches';
+  static const _maxRecentSearches = 8;
 
   final SharedPreferences _prefs;
 
@@ -30,4 +32,26 @@ class AppPrefs {
 
   Future<void> setNoteSort(String value) =>
       _prefs.setString(_noteSortKey, value);
+
+  /// Past searches, newest first.
+  List<String> get recentSearches =>
+      _prefs.getStringList(_recentSearchesKey) ?? const [];
+
+  /// Moves [query] to the front of [recentSearches], keeping the list short.
+  Future<void> addRecentSearch(String query) {
+    final q = query.trim();
+    if (q.isEmpty) return Future.value();
+    final list = [
+      q,
+      ...recentSearches.where((s) => s.toLowerCase() != q.toLowerCase()),
+    ].take(_maxRecentSearches).toList();
+    return _prefs.setStringList(_recentSearchesKey, list);
+  }
+
+  Future<void> removeRecentSearch(String query) => _prefs.setStringList(
+    _recentSearchesKey,
+    recentSearches.where((s) => s != query).toList(),
+  );
+
+  Future<void> clearRecentSearches() => _prefs.remove(_recentSearchesKey);
 }
