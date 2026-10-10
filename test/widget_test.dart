@@ -181,4 +181,51 @@ void main() {
       expect(prefs.getString('notes'), contains('"pinned":true'));
     });
   });
+
+  testWidgets('search tab: results, #tag, recent searches', (tester) async {
+    final t = DateTime(2026, 1, 1);
+    await startApp(
+      tester,
+      onboardingDone: true,
+      notes: [
+        Note(
+          id: 'a',
+          title: 'Trip plan',
+          body: 'Pack the camera',
+          tags: ['travel'],
+          createdAt: t,
+          updatedAt: t,
+        ),
+        Note(id: 'b', title: 'Book list', createdAt: t, updatedAt: t),
+      ],
+    );
+    await tester.tap(find.text('Search').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Find anything'), findsOneWidget);
+
+    final box = find.widgetWithText(TextField, 'Search titles, text and #tags');
+    await tester.enterText(box, 'camera');
+    await tester.pumpAndSettle();
+    expect(find.text('1 result'), findsOneWidget);
+
+    await tester.enterText(box, 'nope');
+    await tester.pumpAndSettle();
+    expect(find.text('No results'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ActionChip, '#travel'));
+    await tester.pumpAndSettle();
+    expect(find.text('1 result'), findsOneWidget);
+
+    await tester.tap(find.textContaining('Trip plan', findRichText: true));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+    expect(find.text('Recent searches'), findsOneWidget);
+    expect(AppPrefs.instance.recentSearches, ['#travel']);
+  });
 }

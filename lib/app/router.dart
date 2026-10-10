@@ -6,6 +6,7 @@ import '../features/home/presentation/home_screen.dart';
 import '../features/notes/presentation/note_editor_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/search/presentation/search_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
@@ -77,11 +78,8 @@ GoRouter createRouter() {
             routes: [
               GoRoute(
                 path: AppRoutes.search,
-                builder: (_, state) => PlaceholderScreen(
-                  title: 'Find anything',
-                  actions: const [SecondaryMenuButton()],
-                  subtitle: state.uri.queryParameters['q'],
-                ),
+                builder: (_, state) =>
+                    SearchScreen(initialQuery: state.uri.queryParameters['q']),
               ),
             ],
           ),
