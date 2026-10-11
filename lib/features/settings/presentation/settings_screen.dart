@@ -27,7 +27,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     setState(() {});
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Recent searches cleared')));
+      ..showSnackBar(
+        const SnackBar(
+          persist: false,
+          duration: Duration(seconds: 3),
+          content: Text('Recent searches cleared'),
+        ),
+      );
   }
 
   Future<void> _export() async {
@@ -42,7 +48,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       messenger
         ..hideCurrentSnackBar()
         ..showSnackBar(
-          const SnackBar(content: Text("Couldn't create the backup")),
+          const SnackBar(
+            persist: false,
+            duration: Duration(seconds: 3),
+            content: Text("Couldn't create the backup"),
+          ),
         );
     }
   }
@@ -63,12 +73,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on FormatException catch (e) {
       messenger
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text("Can't restore: ${e.message}")));
+        ..showSnackBar(
+          SnackBar(
+            persist: false,
+            duration: const Duration(seconds: 3),
+            content: Text("Can't restore: ${e.message}"),
+          ),
+        );
       return;
     }
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+      ..showSnackBar(
+        SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 3),
+          content: Text(message),
+        ),
+      );
   }
 
   Future<void> _replayIntro() async {

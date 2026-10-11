@@ -201,7 +201,13 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
     if (note == null || note.inTrash) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(const SnackBar(content: Text('That note was deleted')));
+        ..showSnackBar(
+          const SnackBar(
+            persist: false,
+            duration: Duration(seconds: 3),
+            content: Text('That note was deleted'),
+          ),
+        );
       return;
     }
     context.push(AppRoutes.noteById(note.id));

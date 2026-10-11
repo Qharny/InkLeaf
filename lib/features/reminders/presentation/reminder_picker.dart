@@ -88,7 +88,11 @@ Future<ReminderChoice?> showReminderPicker(
         );
         if (!chosen.isAfter(DateTime.now())) {
           ScaffoldMessenger.of(sheetContext).showSnackBar(
-            const SnackBar(content: Text('Pick a time in the future')),
+            const SnackBar(
+              persist: false,
+              duration: Duration(seconds: 3),
+              content: Text('Pick a time in the future'),
+            ),
           );
           return;
         }

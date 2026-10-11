@@ -13,6 +13,7 @@ import '../../../core/widgets/doodles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
 import '../../notes/presentation/bin_animation.dart';
+import '../../notes/presentation/card_flight.dart';
 import '../../notes/presentation/note_card.dart';
 
 /// "Your desk": greeting, search, tag filters, pinned notes and the rest of
@@ -32,12 +33,19 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _grid = AppPrefs.instance.homeGrid;
   NoteSort _sort = NoteSort.parse(AppPrefs.instance.noteSort);
 
+  /// Each card's key, so a card can be found after it moves.
+  final _cardKeys = <String, GlobalKey>{};
+
+  /// Cards hidden while an animated copy travels to where they now are.
+  final _hidden = <String>{};
+
   @override
   void initState() {
     super.initState();
     // Open notes from shares and tapped reminders, including one that
     // launched the app.
     pendingNoteToOpen.addListener(_openPending);
+    BinEvents.note.addListener(_onRestored);
     WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
   }
 
@@ -51,11 +59,58 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     pendingNoteToOpen.removeListener(_openPending);
+    BinEvents.note.removeListener(_onRestored);
     _search.dispose();
     super.dispose();
   }
 
   void _open(Note note) => context.push(AppRoutes.noteById(note.id));
+
+  /// Hides note [id]'s card for a frame so it can be found in its new
+  /// place, then lets [play] animate something into that place.
+  Future<void> _arrive(String id, Future<void> Function(Rect to) play) async {
+    setState(() => _hidden.add(id));
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final card = _cardKeys[id]?.currentContext;
+    final to = card != null && card.mounted ? globalRectOf(card) : null;
+    // Only when Home is the visible tab.
+    if (to != null && TickerMode.valuesOf(context).enabled) await play(to);
+    if (mounted) setState(() => _hidden.remove(id));
+  }
+
+  /// Pins or unpins with the card travelling to its new row.
+  void _togglePin(Note note, BuildContext card) {
+    final from = globalRectOf(card);
+    _repo.togglePin(note.id);
+    final moved = _repo.byId(note.id);
+    if (from == null || moved == null) return;
+    _arrive(
+      note.id,
+      (to) => flyNoteCard(context, note: moved, from: from, to: to),
+    );
+  }
+
+  /// A note brought back by Undo comes out of the bin into its spot.
+  void _onRestored() {
+    final id = BinEvents.note.value;
+    if (id == null) return;
+    BinEvents.note.value = null;
+    final note = _repo.byId(id);
+    if (note == null || !mounted) return;
+    _arrive(
+      id,
+      (to) =>
+          pullFromBin(context, to: to, paper: noteFill(context, note.color)),
+    );
+  }
+
+  /// A card that can be found after it moves, and hidden while it lands.
+  Widget _card(Note note, Widget Function(BuildContext card) build) => Builder(
+    key: _cardKeys.putIfAbsent(note.id, GlobalKey.new),
+    builder: (card) =>
+        Opacity(opacity: _hidden.contains(note.id) ? 0 : 1, child: build(card)),
+  );
 
   void _toggleLayout() {
     setState(() => _grid = !_grid);
@@ -156,12 +211,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 168,
                     // Builder: the long-press menu needs the card's own context,
                     // to throw it in the bin from where it sits.
-                    child: Builder(
-                      builder: (card) => NoteCard(
+                    child: _card(
+                      pinned[i],
+                      (card) => NoteCard(
                         note: pinned[i],
                         previewLines: 3,
                         onTap: () => _open(pinned[i]),
-                        onLongPress: () => showNoteActions(card, pinned[i]),
+                        onLongPress: () => showNoteActions(
+                          card,
+                          pinned[i],
+                          onTogglePin: () => _togglePin(pinned[i], card),
+                        ),
                       ),
                     ),
                   ),
@@ -186,24 +246,34 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisSpacing: 12,
                           ),
                       itemCount: others.length,
-                      itemBuilder: (_, i) => Builder(
-                        builder: (card) => NoteCard(
+                      itemBuilder: (_, i) => _card(
+                        others[i],
+                        (card) => NoteCard(
                           note: others[i],
                           onTap: () => _open(others[i]),
-                          onLongPress: () => showNoteActions(card, others[i]),
+                          onLongPress: () => showNoteActions(
+                            card,
+                            others[i],
+                            onTogglePin: () => _togglePin(others[i], card),
+                          ),
                         ),
                       ),
                     )
                   : SliverList.separated(
                       itemCount: others.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => Builder(
-                        builder: (card) => NoteCard(
+                      itemBuilder: (_, i) => _card(
+                        others[i],
+                        (card) => NoteCard(
                           note: others[i],
                           fixedHeight: false,
                           previewLines: 2,
                           onTap: () => _open(others[i]),
-                          onLongPress: () => showNoteActions(card, others[i]),
+                          onLongPress: () => showNoteActions(
+                            card,
+                            others[i],
+                            onTogglePin: () => _togglePin(others[i], card),
+                          ),
                         ),
                       ),
                     ),
@@ -266,7 +336,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
 /// Long-press menu for a note: pin, recolor, move to trash. [context] should
 /// be the note's card, which "Move to trash" throws into the bin.
-Future<void> showNoteActions(BuildContext context, Note note) {
+/// [onTogglePin] replaces the plain pin toggle (e.g. to animate the move).
+Future<void> showNoteActions(
+  BuildContext context,
+  Note note, {
+  VoidCallback? onTogglePin,
+}) {
   final repo = NotesRepository.instance;
   final messenger = ScaffoldMessenger.of(context);
   final card = globalRectOf(context);
@@ -306,8 +381,8 @@ Future<void> showNoteActions(BuildContext context, Note note) {
               ),
               title: Text(note.pinned ? 'Unpin' : 'Pin to top'),
               onTap: () {
-                repo.togglePin(note.id);
                 Navigator.of(sheetContext).pop();
+                onTogglePin != null ? onTogglePin() : repo.togglePin(note.id);
               },
             ),
             ListTile(
@@ -341,12 +416,15 @@ void moveNoteToTrash(ScaffoldMessengerState messenger, Note note) {
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
+        persist: false,
+        duration: const Duration(seconds: 3),
         content: const Text('Moved to trash'),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () {
             repo.restore(note.id);
             if (note.pinned) repo.togglePin(note.id);
+            BinEvents.restored(BinEvents.note, note.id);
           },
         ),
       ),

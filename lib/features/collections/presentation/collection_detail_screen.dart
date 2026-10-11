@@ -6,6 +6,8 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
+import '../../notes/presentation/bin_animation.dart';
+import '../../notes/presentation/card_flight.dart';
 import '../../notes/presentation/note_card.dart';
 import '../data/collections_repository.dart';
 import '../domain/collection.dart';
@@ -35,9 +37,12 @@ class CollectionDetailScreen extends StatelessWidget {
     );
   }
 
+  /// [context] should be the note's card, which shrinks away when the note
+  /// is taken out of the collection.
   void _noteActions(BuildContext context, Collection collection, Note note) {
     final repo = CollectionsRepository.instance;
     final messenger = ScaffoldMessenger.of(context);
+    final card = globalRectOf(context);
     showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -61,11 +66,16 @@ class CollectionDetailScreen extends StatelessWidget {
               subtitle: const Text('The note itself is kept'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
+                if (card != null) {
+                  vanishNoteCard(context, note: note, from: card);
+                }
                 repo.removeNote(collection.id, note.id);
                 messenger
                   ..hideCurrentSnackBar()
                   ..showSnackBar(
                     SnackBar(
+                      persist: false,
+                      duration: const Duration(seconds: 3),
                       content: const Text('Removed from collection'),
                       action: SnackBarAction(
                         label: 'Undo',
@@ -133,6 +143,15 @@ class CollectionDetailScreen extends StatelessWidget {
                     editCollection(context, collection);
                   } else {
                     final messenger = ScaffoldMessenger.of(context);
+                    // The whole folder crumples into the bin as it closes.
+                    final page = globalRectOf(context);
+                    if (page != null) {
+                      throwInBin(
+                        context,
+                        from: page.deflate(32),
+                        paper: coverColor(collection.cover),
+                      );
+                    }
                     context.pop();
                     deleteCollection(messenger, collection);
                   }
@@ -179,16 +198,20 @@ class CollectionDetailScreen extends StatelessWidget {
                   sliver: SliverList.separated(
                     itemCount: notes.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) => _SlideOut(
+                    itemBuilder: (_, i) => _SlideOut(
                       index: i,
-                      child: NoteCard(
-                        note: notes[i],
-                        fixedHeight: false,
-                        previewLines: 2,
-                        onTap: () =>
-                            context.push(AppRoutes.noteById(notes[i].id)),
-                        onLongPress: () =>
-                            _noteActions(context, collection, notes[i]),
+                      // Builder: the card's own context, so removing it can
+                      // shrink it away where it sits.
+                      child: Builder(
+                        builder: (card) => NoteCard(
+                          note: notes[i],
+                          fixedHeight: false,
+                          previewLines: 2,
+                          onTap: () =>
+                              card.push(AppRoutes.noteById(notes[i].id)),
+                          onLongPress: () =>
+                              _noteActions(card, collection, notes[i]),
+                        ),
                       ),
                     ),
                   ),
