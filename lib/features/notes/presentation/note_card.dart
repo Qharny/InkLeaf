@@ -98,6 +98,31 @@ class NoteCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (note.scanFile != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.document_scanner_outlined,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Scanned page',
+                          style: text.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (note.audio case final audio?)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -109,14 +134,16 @@ class NoteCard extends StatelessWidget {
                         color: scheme.primary,
                       ),
                       const SizedBox(width: 4),
-                      Text(
-                        formatDuration(audio.duration),
-                        style: text.labelMedium?.copyWith(
-                          color: scheme.primary,
-                          fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Text(
+                          formatDuration(audio.duration),
+                          style: text.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          semanticsLabel:
+                              'Recording, ${formatDuration(audio.duration)}',
                         ),
-                        semanticsLabel:
-                            'Recording, ${formatDuration(audio.duration)}',
                       ),
                     ],
                   ),

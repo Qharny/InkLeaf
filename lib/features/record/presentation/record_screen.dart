@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
-import '../../../core/storage/audio_store.dart';
+import '../../../core/storage/media_store.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
@@ -59,8 +59,8 @@ class _RecordScreenState extends State<RecordScreen> {
       if (mounted) setState(() => _phase = _Phase.denied);
       return;
     }
-    final name = AudioStore.newFileName();
-    await _recorder.start(AudioStore.pathOf(name));
+    final name = MediaStore.audio.newFileName();
+    await _recorder.start(MediaStore.audio.pathOf(name));
     if (!mounted) return;
     _fileName = name;
     _clock

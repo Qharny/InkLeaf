@@ -14,6 +14,7 @@ import '../features/notes/presentation/sketch_pad_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/record/presentation/record_screen.dart';
+import '../features/scan/presentation/scan_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
@@ -173,7 +174,7 @@ GoRouter createRouter() {
         pageBuilder: (_, state) => MaterialPage(
           key: state.pageKey,
           fullscreenDialog: true,
-          child: const PlaceholderScreen(title: 'Capture anything'),
+          child: const ScanScreen(),
         ),
       ),
       GoRoute(

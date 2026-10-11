@@ -7,7 +7,7 @@ import '../../canvas/domain/board.dart';
 class NoteAudio {
   const NoteAudio({required this.fileName, required this.durationMs});
 
-  /// File name inside `AudioStore.directory`.
+  /// File name inside `MediaStore.audio.directory`.
   final String fileName;
   final int durationMs;
 
@@ -36,6 +36,7 @@ class Note {
     this.tags = const [],
     this.sketch = const [],
     this.audio,
+    this.scanFile,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -66,6 +67,10 @@ class Note {
 
   /// A voice recording, if any.
   final NoteAudio? audio;
+
+  /// The scanned page this note was made from: a file name inside
+  /// `MediaStore.scans.directory`.
+  final String? scanFile;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -76,7 +81,8 @@ class Note {
       title.trim().isEmpty &&
       body.trim().isEmpty &&
       sketch.isEmpty &&
-      audio == null;
+      audio == null &&
+      scanFile == null;
   bool get inTrash => deletedAt != null;
 
   /// The title, or the first line of the body when there is no title.
@@ -85,6 +91,7 @@ class Note {
     final firstLine = body.trim().split('\n').first;
     if (firstLine.isNotEmpty) return firstLine;
     if (audio != null) return 'Voice note';
+    if (scanFile != null) return 'Scan';
     return sketch.isEmpty ? 'Untitled' : 'Sketch';
   }
 
@@ -112,6 +119,7 @@ class Note {
     List<String>? tags,
     List<BoardStroke>? sketch,
     NoteAudio? Function()? audio,
+    String? Function()? scanFile,
     DateTime? updatedAt,
     DateTime? Function()? deletedAt,
   }) => Note(
@@ -123,6 +131,7 @@ class Note {
     tags: tags ?? this.tags,
     sketch: sketch ?? this.sketch,
     audio: audio != null ? audio() : this.audio,
+    scanFile: scanFile != null ? scanFile() : this.scanFile,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt != null ? deletedAt() : this.deletedAt,
@@ -137,6 +146,7 @@ class Note {
     'tags': tags,
     if (sketch.isNotEmpty) 'sketch': [for (final s in sketch) s.toJson()],
     if (audio != null) 'audio': audio!.toJson(),
+    if (scanFile != null) 'scanFile': scanFile,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
@@ -159,6 +169,7 @@ class Note {
       ),
       _ => null,
     },
+    scanFile: json['scanFile'] as String?,
     createdAt: DateTime.parse(json['createdAt']! as String),
     updatedAt: DateTime.parse(json['updatedAt']! as String),
     deletedAt: switch (json['deletedAt']) {
