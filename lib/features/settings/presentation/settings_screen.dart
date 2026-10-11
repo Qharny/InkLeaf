@@ -9,6 +9,7 @@ import '../../backup/data/backup_io.dart';
 import '../../backup/data/backup_service.dart';
 import '../../canvas/data/boards_repository.dart';
 import '../../collections/data/collections_repository.dart';
+import '../../lock/data/app_lock.dart';
 import '../../notes/data/notes_repository.dart';
 
 /// Appearance, search history, a look at what's stored, and about.
@@ -93,6 +94,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
   }
 
+  Future<void> _setLock(bool on) async {
+    final messenger = ScaffoldMessenger.of(context);
+    String? message;
+    if (on) {
+      message = switch (await AppLock.instance.turnOn()) {
+        LockSetup.on => 'Inkleaf will ask for your fingerprint, face or PIN',
+        LockSetup.noScreenLock =>
+          'Set up a screen lock on your phone first, then turn this on',
+        LockSetup.cancelled => null,
+      };
+    } else {
+      await AppLock.instance.turnOff();
+    }
+    if (!mounted) return;
+    setState(() {});
+    if (message != null) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            persist: false,
+            duration: const Duration(seconds: 3),
+            content: Text(message),
+          ),
+        );
+    }
+  }
+
   Future<void> _replayIntro() async {
     await _prefs.resetOnboarding();
     if (mounted) context.go(AppRoutes.onboarding);
@@ -133,6 +162,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onSelectionChanged: (s) => _prefs.setThemeMode(s.single),
               ),
             ),
+          ),
+          const _Section('Privacy'),
+          SwitchListTile(
+            secondary: const Icon(Icons.lock_outline_rounded),
+            title: const Text('Lock Inkleaf'),
+            subtitle: Text(
+              'Ask for your fingerprint, face or PIN when opening the app or '
+              'coming back after ${AppLock.awayLimit.inSeconds} seconds away',
+            ),
+            value: AppLock.instance.enabled,
+            onChanged: _setLock,
           ),
           const _Section('Search'),
           ListTile(

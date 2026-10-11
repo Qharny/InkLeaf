@@ -74,5 +74,7 @@
 	<string>Inkleaf uses the camera to scan pages into notes.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Inkleaf can turn photos of pages into notes.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Inkleaf uses Face ID to unlock your notebook when the app lock is on.</string>
 </dict>
 </plist>

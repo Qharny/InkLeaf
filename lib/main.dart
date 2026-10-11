@@ -10,6 +10,7 @@ import 'core/storage/app_prefs.dart';
 import 'core/storage/media_store.dart';
 import 'features/canvas/data/boards_repository.dart';
 import 'features/collections/data/collections_repository.dart';
+import 'features/lock/data/app_lock.dart';
 import 'features/notes/data/notes_repository.dart';
 import 'features/reminders/data/reminders.dart';
 import 'features/share/data/share_inbox.dart';
@@ -29,6 +30,7 @@ Future<void> main() async {
     }
   });
   await AppPrefs.init();
+  AppLock.instance.init();
   await MediaStore.init();
   await AppDatabase.open();
   await AppDatabase.instance.importLegacy(
