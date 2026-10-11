@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
+import '../../notes/presentation/bin_animation.dart';
 import '../domain/collection.dart';
 import 'collection_widgets.dart';
 
@@ -34,7 +35,8 @@ String folderTabHeroTag(String id) => 'folder-tab-$id';
 /// scrolling squeezes passed folders into a stack at the top; pressing a
 /// folder lifts it; long-pressing picks it up to reorder. [FolderDrawerState]
 /// also animates folders dropping in ([FolderDrawerState.dropIn]) and
-/// sliding out ([FolderDrawerState.removeAnimated]). With reduced motion on,
+/// crumpling into the bin ([FolderDrawerState.removeAnimated]), and coming
+/// back out of it on Undo ([BinEvents.collection]). With reduced motion on,
 /// all of this is skipped.
 class FolderDrawer extends StatefulWidget {
   const FolderDrawer({
@@ -69,12 +71,13 @@ class FolderDrawerState extends State<FolderDrawer>
     vsync: this,
     duration: const Duration(milliseconds: 900),
   );
-  late final _remove = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 320),
-  );
   String? _dropping;
-  String? _removing;
+
+  /// Each folder's key, so its place on screen can be found.
+  final _folderKeys = <String, GlobalKey>{};
+
+  /// Folders hidden while one comes back out of the bin into their slot.
+  final _hidden = <String>{};
   bool _reduceMotion = false;
 
   // Reordering.
@@ -82,6 +85,14 @@ class FolderDrawerState extends State<FolderDrawer>
   int _dragTo = 0;
   double _dragTop = 0;
   double _grab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    BinEvents.collection.addListener(_onRestored);
+    // Undo can bring back the last folder before this drawer exists.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _onRestored());
+  }
 
   @override
   void didChangeDependencies() {
@@ -97,7 +108,7 @@ class FolderDrawerState extends State<FolderDrawer>
     _scroll.dispose();
     _entry.dispose();
     _drop.dispose();
-    _remove.dispose();
+    BinEvents.collection.removeListener(_onRestored);
     super.dispose();
   }
 
@@ -109,20 +120,45 @@ class FolderDrawerState extends State<FolderDrawer>
     _drop.forward(from: 0);
   }
 
-  /// Slides the folder for [id] out sideways, then calls [onRemoved], which
-  /// should take it out of [FolderDrawer.collections].
-  Future<void> removeAnimated(String id, VoidCallback onRemoved) async {
-    if (!_reduceMotion) {
-      setState(() => _removing = id);
-      await _remove.forward(from: 0);
+  Rect? _folderRect(String id) {
+    final folder = _folderKeys[id]?.currentContext;
+    return folder != null && folder.mounted ? globalRectOf(folder) : null;
+  }
+
+  Collection? _byId(String id) {
+    for (final c in widget.collections) {
+      if (c.id == id) return c;
+    }
+    return null;
+  }
+
+  /// Crumples the folder for [id] into the bin and calls [onRemoved] (which
+  /// should take it out of [FolderDrawer.collections]) straight away.
+  void removeAnimated(String id, VoidCallback onRemoved) {
+    final rect = _folderRect(id);
+    final folder = _byId(id);
+    if (rect != null && folder != null) {
+      throwInBin(context, from: rect, paper: coverColor(folder.cover));
     }
     onRemoved();
-    if (mounted) {
-      setState(() {
-        _removing = null;
-        _remove.value = 0;
-      });
+  }
+
+  /// A folder brought back by Undo comes out of the bin into its slot.
+  Future<void> _onRestored() async {
+    final id = BinEvents.collection.value;
+    if (id == null || !mounted) return;
+    BinEvents.collection.value = null;
+    setState(() => _hidden.add(id));
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    final rect = _folderRect(id);
+    final folder = _byId(id);
+    if (rect != null &&
+        folder != null &&
+        TickerMode.valuesOf(context).enabled) {
+      await pullFromBin(context, to: rect, paper: coverColor(folder.cover));
     }
+    if (mounted) setState(() => _hidden.remove(id));
   }
 
   double get _scrollOffset => _scroll.hasClients ? _scroll.offset : 0;
@@ -210,12 +246,7 @@ class FolderDrawerState extends State<FolderDrawer>
                   width: constraints.maxWidth,
                   height: math.max(content, constraints.maxHeight),
                   child: AnimatedBuilder(
-                    animation: Listenable.merge([
-                      _scroll,
-                      _entry,
-                      _drop,
-                      _remove,
-                    ]),
+                    animation: Listenable.merge([_scroll, _entry, _drop]),
                     builder: (context, _) => Stack(
                       children: _buildFolders(constraints.maxWidth - _side * 2),
                     ),
@@ -267,7 +298,7 @@ class FolderDrawerState extends State<FolderDrawer>
   Widget _buildFolder(int i, Collection c, double width, double scroll) {
     final dragging = i == _dragFrom;
     var top = dragging ? _dragTop : _restingTop(_visualSlot(i), scroll);
-    var dx = 0.0, angle = 0.0, opacity = 1.0;
+    var opacity = _hidden.contains(c.id) ? 0.0 : 1.0;
 
     if (_entry.value < 1) {
       final start = math.min(i * 0.07, 0.5);
@@ -277,17 +308,11 @@ class FolderDrawerState extends State<FolderDrawer>
         curve: Curves.easeOutBack,
       ).transform(_entry.value);
       top += (1 - t) * 160;
-      opacity = t;
+      opacity *= t;
     }
     if (c.id == _dropping) {
       top -= (1 - Curves.elasticOut.transform(_drop.value)) * 180;
       opacity *= _drop.value * 4;
-    }
-    if (c.id == _removing) {
-      final t = Curves.easeInCubic.transform(_remove.value);
-      dx = -t * (width + 40);
-      angle = -0.12 * t;
-      opacity *= 1 - t;
     }
 
     return AnimatedPositioned(
@@ -304,23 +329,18 @@ class FolderDrawerState extends State<FolderDrawer>
       height: _folderHeight,
       child: Opacity(
         opacity: opacity.clamp(0.0, 1.0),
-        child: Transform.translate(
-          offset: Offset(dx, 0),
-          child: Transform.rotate(
-            angle: angle,
-            child: RepaintBoundary(
-              child: _FolderTile(
-                collection: c,
-                index: i,
-                noteCount: widget.noteCount(c),
-                lifted: dragging,
-                onTap: () => widget.onOpen(c),
-                onMore: () => widget.onMore(c),
-                onDragStart: (d) => _startDrag(i, d),
-                onDragUpdate: _updateDrag,
-                onDragEnd: _endDrag,
-              ),
-            ),
+        child: RepaintBoundary(
+          key: _folderKeys.putIfAbsent(c.id, GlobalKey.new),
+          child: _FolderTile(
+            collection: c,
+            index: i,
+            noteCount: widget.noteCount(c),
+            lifted: dragging,
+            onTap: () => widget.onOpen(c),
+            onMore: () => widget.onMore(c),
+            onDragStart: (d) => _startDrag(i, d),
+            onDragUpdate: _updateDrag,
+            onDragEnd: _endDrag,
           ),
         ),
       ),

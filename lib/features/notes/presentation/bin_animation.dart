@@ -21,6 +21,35 @@ Future<void> throwInBin(
   BuildContext context, {
   required Rect from,
   required Color paper,
+}) => _play(context, page: from, paper: paper, reverse: false);
+
+/// The reverse, for Undo: the bin pops up, the ball flies out and unfolds
+/// into [to], where the restored item now sits. Quicker than the throw.
+Future<void> pullFromBin(
+  BuildContext context, {
+  required Rect to,
+  required Color paper,
+}) => _play(context, page: to, paper: paper, reverse: true);
+
+/// Things that just came back out of the bin (via Undo), by id, so the
+/// screen showing them can play [pullFromBin] into their spot. Whoever
+/// plays it sets the value back to null.
+abstract final class BinEvents {
+  static final note = ValueNotifier<String?>(null);
+  static final collection = ValueNotifier<String?>(null);
+
+  /// Notifies even when the same id is restored twice in a row.
+  static void restored(ValueNotifier<String?> kind, String id) {
+    kind.value = null;
+    kind.value = id;
+  }
+}
+
+Future<void> _play(
+  BuildContext context, {
+  required Rect page,
+  required Color paper,
+  required bool reverse,
 }) {
   if (MediaQuery.disableAnimationsOf(context)) return Future.value();
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -29,7 +58,8 @@ Future<void> throwInBin(
   late final OverlayEntry entry;
   entry = OverlayEntry(
     builder: (_) => _BinThrow(
-      from: from,
+      from: page,
+      reverse: reverse,
       paper: paper,
       ink: scheme.outline,
       bin: scheme.surfaceContainerHighest,
@@ -46,6 +76,7 @@ Future<void> throwInBin(
 class _BinThrow extends StatefulWidget {
   const _BinThrow({
     required this.from,
+    required this.reverse,
     required this.paper,
     required this.ink,
     required this.bin,
@@ -53,6 +84,9 @@ class _BinThrow extends StatefulWidget {
   });
 
   final Rect from;
+
+  /// Plays backwards: out of the bin and into [from].
+  final bool reverse;
   final Color paper;
   final Color ink;
   final Color bin;
@@ -67,7 +101,15 @@ class _BinThrowState extends State<_BinThrow>
   late final _t = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1500),
-  )..forward().whenComplete(widget.onDone);
+    reverseDuration: const Duration(milliseconds: 650),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final run = widget.reverse ? _t.reverse(from: 1) : _t.forward();
+    run.whenComplete(widget.onDone);
+  }
 
   // The timeline, as fractions of the whole animation.
   static const _binIn = Interval(0, 0.16, curve: Curves.easeOutBack);

@@ -7,6 +7,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../../core/widgets/doodles.dart';
 import '../../notes/data/notes_repository.dart';
+import '../../notes/presentation/bin_animation.dart';
 import '../data/collections_repository.dart';
 import '../domain/collection.dart';
 import 'collection_widgets.dart';
@@ -148,10 +149,15 @@ void deleteCollection(ScaffoldMessengerState messenger, Collection collection) {
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
+        persist: false,
+        duration: const Duration(seconds: 3),
         content: Text('Deleted “${collection.name}”'),
         action: SnackBarAction(
           label: 'Undo',
-          onPressed: () => repo.save(collection),
+          onPressed: () {
+            repo.save(collection);
+            BinEvents.restored(BinEvents.collection, collection.id);
+          },
         ),
       ),
     );

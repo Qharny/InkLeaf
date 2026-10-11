@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -49,6 +50,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   late final TextEditingController _title;
   late final TextEditingController _body;
   bool _missing = false;
+
+  /// The reminder set in this visit, so only that one rings its bell.
+  DateTime? _justSet;
 
   /// Whether the new note has been added to [NoteEditorScreen.collectionId].
   bool _filed = false;
@@ -217,12 +221,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     final choice = await showReminderPicker(context, current: _note.remindAt);
     if (choice == null || !mounted) return;
     final at = choice.at;
+    _justSet = at;
     _update(_note.copyWith(remindAt: () => at));
     if (at == null) return;
     final allowed = await Reminders.instance.requestPermission();
     if (!allowed && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
+          persist: false,
+          duration: Duration(seconds: 3),
           content: Text(
             "Notifications are off for Inkleaf, so this reminder can't "
             "alert you. You can turn them on in your phone's settings.",
@@ -390,12 +397,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                 ),
                 if (_note.remindAt case final at?)
                   InputChip(
-                    avatar: Icon(
-                      at.isAfter(DateTime.now())
-                          ? Icons.notifications_active_outlined
-                          : Icons.notifications_none_rounded,
-                      size: 18,
-                    ),
+                    avatar: _RingingBell(at: at, ringNow: at == _justSet),
                     label: Text(reminderLabel(context, at)),
                     tooltip: 'Change reminder',
                     onPressed: _setReminder,
@@ -504,6 +506,78 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// The reminder chip's bell: it swings twice, smaller each time, when a
+/// reminder is set or moved, to confirm it took.
+class _RingingBell extends StatefulWidget {
+  const _RingingBell({required this.at, required this.ringNow});
+
+  final DateTime at;
+
+  /// Rings on appearing: the reminder was just set, not merely opened.
+  final bool ringNow;
+
+  @override
+  State<_RingingBell> createState() => _RingingBellState();
+}
+
+class _RingingBellState extends State<_RingingBell>
+    with SingleTickerProviderStateMixin {
+  late final _ring = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+  );
+
+  bool get _upcoming => widget.at.isAfter(DateTime.now());
+
+  @override
+  void initState() {
+    super.initState();
+    // A chip that appears because a reminder was just set rings too.
+    if (widget.ringNow) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _maybeRing());
+    }
+  }
+
+  @override
+  void didUpdateWidget(_RingingBell old) {
+    super.didUpdateWidget(old);
+    if (old.at != widget.at && widget.ringNow) _maybeRing();
+  }
+
+  void _maybeRing() {
+    if (!mounted || !_upcoming) return;
+    if (MediaQuery.disableAnimationsOf(context)) return;
+    _ring.forward(from: 0);
+  }
+
+  @override
+  void dispose() {
+    _ring.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ring,
+      builder: (context, child) {
+        final t = _ring.value;
+        return Transform.rotate(
+          alignment: Alignment.topCenter,
+          angle: math.sin(t * math.pi * 4) * 0.22 * (1 - t),
+          child: child,
+        );
+      },
+      child: Icon(
+        _upcoming
+            ? Icons.notifications_active_outlined
+            : Icons.notifications_none_rounded,
+        size: 18,
       ),
     );
   }

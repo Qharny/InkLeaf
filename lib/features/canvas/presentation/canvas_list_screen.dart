@@ -108,6 +108,8 @@ class _BoardTile extends StatelessWidget {
                   ..hideCurrentSnackBar()
                   ..showSnackBar(
                     SnackBar(
+                      persist: false,
+                      duration: const Duration(seconds: 3),
                       content: const Text('Canvas deleted'),
                       action: SnackBarAction(
                         label: 'Undo',
