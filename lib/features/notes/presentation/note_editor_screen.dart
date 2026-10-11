@@ -10,6 +10,8 @@ import '../../../core/utils/relative_time.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../collections/presentation/collection_widgets.dart';
 import '../../home/presentation/home_screen.dart';
+import '../../reminders/data/reminders.dart';
+import '../../reminders/presentation/reminder_picker.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
 import 'checklist_editor.dart';
@@ -79,7 +81,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _onClosed() {
-    if (!_note.isEmpty) return;
+    if (!_note.isEmpty) {
+      // The notification shows the note's title, which may have changed.
+      Reminders.instance.refresh(_note.id);
+      return;
+    }
     if (_repo.byId(_note.id) != null) _repo.delete(_note.id);
     CollectionsRepository.instance.setMembership(_note.id, const {});
   }
@@ -164,6 +170,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     if (!(ok ?? false) || !mounted) return;
     MediaStore.scans.delete(fileName);
     _update(_note.copyWith(scanFile: () => null), edited: true);
+  }
+
+  Future<void> _setReminder() async {
+    final choice = await showReminderPicker(context, current: _note.remindAt);
+    if (choice == null || !mounted) return;
+    final at = choice.at;
+    _update(_note.copyWith(remindAt: () => at));
+    if (at == null) return;
+    final allowed = await Reminders.instance.requestPermission();
+    if (!allowed && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Notifications are off for Inkleaf, so this reminder can't "
+            "alert you. You can turn them on in your phone's settings.",
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _editSketch() async {
@@ -288,6 +313,30 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   label: const Text('Tag'),
                   onPressed: _addTag,
                 ),
+                if (_note.remindAt case final at?)
+                  InputChip(
+                    avatar: Icon(
+                      at.isAfter(DateTime.now())
+                          ? Icons.notifications_active_outlined
+                          : Icons.notifications_none_rounded,
+                      size: 18,
+                    ),
+                    label: Text(reminderLabel(context, at)),
+                    tooltip: 'Change reminder',
+                    onPressed: _setReminder,
+                    deleteButtonTooltipMessage: 'Remove reminder',
+                    onDeleted: () =>
+                        _update(_note.copyWith(remindAt: () => null)),
+                  )
+                else
+                  ActionChip(
+                    avatar: const Icon(
+                      Icons.notifications_none_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Remind me'),
+                    onPressed: _setReminder,
+                  ),
                 if (_note.checklist.isEmpty)
                   ActionChip(
                     avatar: const Icon(Icons.checklist_rounded, size: 18),

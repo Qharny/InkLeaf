@@ -4,6 +4,7 @@ import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../canvas/presentation/board_painters.dart';
+import '../../reminders/presentation/reminder_picker.dart';
 import '../domain/note.dart';
 
 /// The pastel paper fill for a note color index. On the night desk the
@@ -106,6 +107,33 @@ class NoteCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (note.remindAt case final at? when at.isAfter(DateTime.now()))
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.notifications_active_outlined,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          reminderLabel(context, at),
+                          style: text.labelMedium?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          semanticsLabel:
+                              'Reminder ${reminderLabel(context, at)}',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               if (note.scanFile != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4),

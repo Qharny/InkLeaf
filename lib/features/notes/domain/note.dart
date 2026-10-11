@@ -67,6 +67,7 @@ class Note {
     this.checklist = const [],
     this.audio,
     this.scanFile,
+    this.remindAt,
     required this.createdAt,
     required this.updatedAt,
     this.deletedAt,
@@ -104,6 +105,9 @@ class Note {
   /// The scanned page this note was made from: a file name inside
   /// `MediaStore.scans.directory`.
   final String? scanFile;
+
+  /// When to show a reminder notification for this note.
+  final DateTime? remindAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -159,6 +163,7 @@ class Note {
     List<ChecklistItem>? checklist,
     NoteAudio? Function()? audio,
     String? Function()? scanFile,
+    DateTime? Function()? remindAt,
     DateTime? updatedAt,
     DateTime? Function()? deletedAt,
   }) => Note(
@@ -172,6 +177,7 @@ class Note {
     checklist: checklist ?? this.checklist,
     audio: audio != null ? audio() : this.audio,
     scanFile: scanFile != null ? scanFile() : this.scanFile,
+    remindAt: remindAt != null ? remindAt() : this.remindAt,
     createdAt: createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     deletedAt: deletedAt != null ? deletedAt() : this.deletedAt,
@@ -189,6 +195,7 @@ class Note {
       'checklist': [for (final i in checklist) i.toJson()],
     if (audio != null) 'audio': audio!.toJson(),
     if (scanFile != null) 'scanFile': scanFile,
+    if (remindAt != null) 'remindAt': remindAt!.toIso8601String(),
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'deletedAt': deletedAt?.toIso8601String(),
@@ -216,6 +223,10 @@ class Note {
       _ => null,
     },
     scanFile: json['scanFile'] as String?,
+    remindAt: switch (json['remindAt']) {
+      final String s => DateTime.tryParse(s),
+      _ => null,
+    },
     createdAt: DateTime.parse(json['createdAt']! as String),
     updatedAt: DateTime.parse(json['updatedAt']! as String),
     deletedAt: switch (json['deletedAt']) {

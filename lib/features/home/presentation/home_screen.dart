@@ -5,6 +5,7 @@ import '../../../app/app_shell.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
+import '../../../core/navigation/pending_note.dart';
 import '../../../core/storage/app_prefs.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../../core/widgets/app_logo.dart';
@@ -12,7 +13,6 @@ import '../../../core/widgets/doodles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
 import '../../notes/presentation/note_card.dart';
-import '../../share/data/share_inbox.dart';
 
 /// "Your desk": greeting, search, tag filters, pinned notes and the rest of
 /// the notes as a grid or list.
@@ -34,22 +34,22 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Open notes made from shares, including one that launched the app.
-    ShareInbox.instance.pendingNote.addListener(_openShared);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _openShared());
+    // Open notes from shares and tapped reminders, including one that
+    // launched the app.
+    pendingNoteToOpen.addListener(_openPending);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
   }
 
-  void _openShared() {
-    final inbox = ShareInbox.instance.pendingNote;
-    final id = inbox.value;
+  void _openPending() {
+    final id = pendingNoteToOpen.value;
     if (id == null || !mounted) return;
-    inbox.value = null;
+    pendingNoteToOpen.value = null;
     context.push(AppRoutes.noteById(id));
   }
 
   @override
   void dispose() {
-    ShareInbox.instance.pendingNote.removeListener(_openShared);
+    pendingNoteToOpen.removeListener(_openPending);
     _search.dispose();
     super.dispose();
   }
