@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
+import 'core/storage/app_database.dart';
 import 'core/storage/app_prefs.dart';
 import 'core/storage/media_store.dart';
 import 'features/canvas/data/boards_repository.dart';
@@ -11,6 +13,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AppPrefs.init();
   await MediaStore.init();
+  await AppDatabase.open();
+  await AppDatabase.instance.importLegacy(
+    await SharedPreferences.getInstance(),
+  );
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();

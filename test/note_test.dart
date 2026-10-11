@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_note/core/storage/app_database.dart';
 import 'package:my_note/core/storage/media_store.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final t = DateTime(2026, 1, 1);
@@ -62,7 +62,7 @@ void main() {
   });
 
   test('deleting a note for good deletes its recording', () async {
-    SharedPreferences.setMockInitialValues({});
+    AppDatabase.openInMemory();
     await NotesRepository.init();
     MediaStore.audio.directory = Directory.systemTemp.createTempSync(
       'inkleaf_t',

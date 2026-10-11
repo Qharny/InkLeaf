@@ -1,9 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:my_note/core/storage/app_database.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/collections/domain/collection.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test('withNote adds once, newest first; withoutNote removes', () {
@@ -34,7 +34,7 @@ void main() {
     late Collection a, b;
 
     setUp(() async {
-      SharedPreferences.setMockInitialValues({});
+      AppDatabase.openInMemory();
       await CollectionsRepository.init();
       repo = CollectionsRepository.instance;
       a = Collection.create(name: 'A');

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_note/app/app.dart';
+import 'package:my_note/core/storage/app_database.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
 import 'package:my_note/core/storage/media_store.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
@@ -32,6 +33,12 @@ Future<void> startApp(
   );
   MediaStore.scans.directory = Directory.systemTemp.createTempSync(
     'inkleaf_scans',
+  );
+  // Seeded notes arrive through the old SharedPreferences key, so every test
+  // also runs the one-time import into the database.
+  AppDatabase.openInMemory();
+  await AppDatabase.instance.importLegacy(
+    await SharedPreferences.getInstance(),
   );
   await NotesRepository.init();
   await BoardsRepository.init();
@@ -193,8 +200,8 @@ void main() {
         notes: [note('a', 'Keep me')],
       );
       NotesRepository.instance.togglePin('a');
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('notes'), contains('"pinned":true'));
+      final saved = AppDatabase.instance.readAll(AppDatabase.notes).single;
+      expect(saved['pinned'], isTrue);
     });
   });
 
@@ -317,8 +324,8 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(find.textContaining('2 cards'), findsOneWidget);
-      final prefs = await SharedPreferences.getInstance();
-      expect(prefs.getString('boards'), contains('Big idea'));
+      final saved = AppDatabase.instance.readAll(AppDatabase.boards).single;
+      expect(jsonEncode(saved), contains('Big idea'));
     });
 
     testWidgets('an untouched new canvas is discarded', (tester) async {
