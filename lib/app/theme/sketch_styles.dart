@@ -288,3 +288,16 @@ class _SketchLinePainter extends CustomPainter {
   bool shouldRepaint(_SketchLinePainter old) =>
       old.color != color || old.thickness != thickness || old.seed != seed;
 }
+
+/// A text field with no box at all, for writing straight onto the page:
+/// note titles, body text, checklist items. `InputDecoration.collapsed`
+/// alone still picks up the theme's outlined borders.
+InputDecoration pageInput(String hint) =>
+    InputDecoration.collapsed(hintText: hint).copyWith(
+      filled: false,
+      enabledBorder: InputBorder.none,
+      focusedBorder: InputBorder.none,
+      disabledBorder: InputBorder.none,
+      errorBorder: InputBorder.none,
+      focusedErrorBorder: InputBorder.none,
+    );

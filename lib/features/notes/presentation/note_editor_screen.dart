@@ -371,7 +371,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.next,
               maxLines: null,
-              decoration: const InputDecoration.collapsed(hintText: 'Title'),
+              decoration: pageInput('Title'),
               onChanged: (v) =>
                   _update(_note.copyWith(title: v), edited: true, typing: true),
             ),
@@ -492,9 +492,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               keyboardType: TextInputType.multiline,
               maxLines: null,
               minLines: 12,
-              decoration: const InputDecoration.collapsed(
-                hintText: 'Start writing…',
-              ),
+              decoration: pageInput('Start writing…'),
               onChanged: (v) =>
                   _update(_note.copyWith(body: v), edited: true, typing: true),
             ),
