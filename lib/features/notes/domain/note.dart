@@ -2,6 +2,35 @@ import 'package:flutter/foundation.dart';
 
 import '../../canvas/domain/board.dart';
 
+var _itemCounter = 0;
+
+/// One line of a note's checklist.
+@immutable
+class ChecklistItem {
+  const ChecklistItem({required this.id, this.text = '', this.done = false});
+
+  factory ChecklistItem.create() => ChecklistItem(
+    id:
+        '${DateTime.now().microsecondsSinceEpoch.toRadixString(36)}'
+        '${(_itemCounter++).toRadixString(36)}',
+  );
+
+  final String id;
+  final String text;
+  final bool done;
+
+  ChecklistItem copyWith({String? text, bool? done}) =>
+      ChecklistItem(id: id, text: text ?? this.text, done: done ?? this.done);
+
+  Map<String, Object?> toJson() => {'id': id, 'text': text, 'done': done};
+
+  factory ChecklistItem.fromJson(Map<String, Object?> json) => ChecklistItem(
+    id: json['id']! as String,
+    text: json['text'] as String? ?? '',
+    done: json['done'] as bool? ?? false,
+  );
+}
+
 /// A voice recording attached to a note.
 @immutable
 class NoteAudio {
@@ -35,6 +64,7 @@ class Note {
     this.pinned = false,
     this.tags = const [],
     this.sketch = const [],
+    this.checklist = const [],
     this.audio,
     this.scanFile,
     required this.createdAt,
@@ -65,6 +95,9 @@ class Note {
   /// A hand drawing, in the sketch pad's coordinates.
   final List<BoardStroke> sketch;
 
+  /// To-do items, in order.
+  final List<ChecklistItem> checklist;
+
   /// A voice recording, if any.
   final NoteAudio? audio;
 
@@ -81,6 +114,7 @@ class Note {
       title.trim().isEmpty &&
       body.trim().isEmpty &&
       sketch.isEmpty &&
+      checklist.every((i) => i.text.trim().isEmpty) &&
       audio == null &&
       scanFile == null;
   bool get inTrash => deletedAt != null;
@@ -90,6 +124,9 @@ class Note {
     if (title.trim().isNotEmpty) return title.trim();
     final firstLine = body.trim().split('\n').first;
     if (firstLine.isNotEmpty) return firstLine;
+    for (final item in checklist) {
+      if (item.text.trim().isNotEmpty) return item.text.trim();
+    }
     if (audio != null) return 'Voice note';
     if (scanFile != null) return 'Scan';
     return sketch.isEmpty ? 'Untitled' : 'Sketch';
@@ -108,7 +145,8 @@ class Note {
     if (q.isEmpty) return true;
     return title.toLowerCase().contains(q) ||
         body.toLowerCase().contains(q) ||
-        tags.any((t) => t.contains(q));
+        tags.any((t) => t.contains(q)) ||
+        checklist.any((i) => i.text.toLowerCase().contains(q));
   }
 
   Note copyWith({
@@ -118,6 +156,7 @@ class Note {
     bool? pinned,
     List<String>? tags,
     List<BoardStroke>? sketch,
+    List<ChecklistItem>? checklist,
     NoteAudio? Function()? audio,
     String? Function()? scanFile,
     DateTime? updatedAt,
@@ -130,6 +169,7 @@ class Note {
     pinned: pinned ?? this.pinned,
     tags: tags ?? this.tags,
     sketch: sketch ?? this.sketch,
+    checklist: checklist ?? this.checklist,
     audio: audio != null ? audio() : this.audio,
     scanFile: scanFile != null ? scanFile() : this.scanFile,
     createdAt: createdAt,
@@ -145,6 +185,8 @@ class Note {
     'pinned': pinned,
     'tags': tags,
     if (sketch.isNotEmpty) 'sketch': [for (final s in sketch) s.toJson()],
+    if (checklist.isNotEmpty)
+      'checklist': [for (final i in checklist) i.toJson()],
     if (audio != null) 'audio': audio!.toJson(),
     if (scanFile != null) 'scanFile': scanFile,
     'createdAt': createdAt.toIso8601String(),
@@ -162,6 +204,10 @@ class Note {
     sketch: [
       for (final s in json['sketch'] as List<Object?>? ?? const [])
         BoardStroke.fromJson((s! as Map).cast<String, Object?>()),
+    ],
+    checklist: [
+      for (final i in json['checklist'] as List<Object?>? ?? const [])
+        ChecklistItem.fromJson((i! as Map).cast<String, Object?>()),
     ],
     audio: switch (json['audio']) {
       final Map<Object?, Object?> a => NoteAudio.fromJson(

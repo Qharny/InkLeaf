@@ -87,4 +87,31 @@ void main() {
     }
     expect(file.existsSync(), isFalse);
   });
+
+  test('checklists: saved, searched, and blank items count as empty', () {
+    const items = [
+      ChecklistItem(id: 'i1', text: 'Milk', done: true),
+      ChecklistItem(id: 'i2', text: 'Eggs'),
+    ];
+    final note = Note(id: 'c', checklist: items, createdAt: t, updatedAt: t);
+    expect(note.isEmpty, isFalse);
+    expect(note.displayTitle, 'Milk');
+    expect(note.matches('egg'), isTrue);
+
+    final back = Note.fromJson(
+      (jsonDecode(jsonEncode(note.toJson())) as Map).cast<String, Object?>(),
+    );
+    expect(
+      [for (final i in back.checklist) (i.text, i.done)],
+      [('Milk', true), ('Eggs', false)],
+    );
+
+    final blank = Note(
+      id: 'b',
+      checklist: [ChecklistItem.create()],
+      createdAt: t,
+      updatedAt: t,
+    );
+    expect(blank.isEmpty, isTrue);
+  });
 }
