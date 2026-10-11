@@ -45,20 +45,28 @@ class _HomeScreenState extends State<HomeScreen> {
     // Open notes from shares and tapped reminders, including one that
     // launched the app.
     pendingNoteToOpen.addListener(_openPending);
+    pendingLocationToOpen.addListener(_openPending);
     BinEvents.note.addListener(_onRestored);
     WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
   }
 
   void _openPending() {
+    if (!mounted) return;
     final id = pendingNoteToOpen.value;
-    if (id == null || !mounted) return;
-    pendingNoteToOpen.value = null;
-    context.push(AppRoutes.noteById(id));
+    final location = pendingLocationToOpen.value;
+    if (id != null) {
+      pendingNoteToOpen.value = null;
+      context.push(AppRoutes.noteById(id));
+    } else if (location != null) {
+      pendingLocationToOpen.value = null;
+      context.push(location);
+    }
   }
 
   @override
   void dispose() {
     pendingNoteToOpen.removeListener(_openPending);
+    pendingLocationToOpen.removeListener(_openPending);
     BinEvents.note.removeListener(_onRestored);
     _search.dispose();
     super.dispose();

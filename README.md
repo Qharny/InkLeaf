@@ -37,6 +37,8 @@
   phone (ML Kit), ready to fix up and search. The photo is kept with the note.
 - **Share into Inkleaf**: text, links and photos shared from any app become
   a new note (Android).
+- **Home-screen widget**: one-tap note, checklist, voice note or scan, plus
+  your pinned notes, right on the phone's home screen (Android).
 
 **Organize**
 - **Links between notes**: type `[[` to link another note; each note shows
@@ -201,6 +203,7 @@ notifications, sharing) sit behind small interfaces so tests can use fakes.
 | Backup | [archive](https://pub.dev/packages/archive), [share_plus](https://pub.dev/packages/share_plus), [file_picker](https://pub.dev/packages/file_picker) |
 | Sharing in | [receive_sharing_intent](https://pub.dev/packages/receive_sharing_intent) |
 | App lock | [local_auth](https://pub.dev/packages/local_auth) |
+| Home-screen widget | [home_widget](https://pub.dev/packages/home_widget) |
 | Fonts | [google_fonts](https://pub.dev/packages/google_fonts) with bundled font files |
 
 ## License

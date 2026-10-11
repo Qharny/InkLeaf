@@ -53,6 +53,18 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- Home-screen widget: quick capture and pinned notes. -->
+        <receiver
+            android:name=".InkleafWidgetProvider"
+            android:exported="true"
+            android:label="Inkleaf">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/inkleaf_widget_info" />
+        </receiver>
         <!-- Show scheduled reminders, and bring them back after a reboot. -->
         <receiver
             android:exported="false"
