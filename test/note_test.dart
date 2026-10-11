@@ -114,4 +114,23 @@ void main() {
     );
     expect(blank.isEmpty, isTrue);
   });
+
+  test('reminder time survives a JSON round trip', () {
+    final at = DateTime(2026, 11, 2, 9, 30);
+    final note = Note(
+      id: 'r',
+      title: 'x',
+      remindAt: at,
+      createdAt: t,
+      updatedAt: t,
+    );
+    final back = Note.fromJson(
+      (jsonDecode(jsonEncode(note.toJson())) as Map).cast<String, Object?>(),
+    );
+    expect(back.remindAt, at);
+    expect(
+      Note.fromJson(note.copyWith(remindAt: () => null).toJson()).remindAt,
+      isNull,
+    );
+  });
 }

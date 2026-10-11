@@ -1,10 +1,10 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 import '../../../app/theme/app_colors.dart';
+import '../../../core/navigation/pending_note.dart';
 import '../../../core/storage/media_store.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
@@ -56,17 +56,13 @@ class _PluginShareReceiver implements ShareReceiver {
   Future<void> reset() async => _plugin.reset();
 }
 
-/// Turns shares from other apps into notes.
-///
-/// The new note's id lands in [pendingNote]; the home screen opens it and
-/// clears it. Going through home means a share that launched the app waits
-/// for the splash (and onboarding) to finish first.
+/// Turns shares from other apps into notes, which then open through
+/// [pendingNoteToOpen].
 class ShareInbox {
   ShareInbox._();
 
   static final instance = ShareInbox._();
 
-  final pendingNote = ValueNotifier<String?>(null);
   StreamSubscription<List<SharedItem>>? _sub;
 
   Future<void> start() async {
@@ -102,7 +98,7 @@ class ShareInbox {
     final note = Note.create(color: repo.notes.length % AppColors.notes.length)
         .copyWith(body: text, scanFile: () => photo);
     repo.save(note);
-    pendingNote.value = note.id;
+    pendingNoteToOpen.value = note.id;
     return note.id;
   }
 }

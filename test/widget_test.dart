@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_note/app/app.dart';
+import 'package:my_note/core/navigation/pending_note.dart';
 import 'package:my_note/core/storage/app_database.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
 import 'package:my_note/core/storage/media_store.dart';
@@ -18,15 +19,19 @@ import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
 import 'package:my_note/features/record/data/voice_recorder.dart';
+import 'package:my_note/features/reminders/data/reminders.dart';
 import 'package:my_note/features/scan/data/page_scanner.dart';
 import 'package:my_note/features/share/data/share_inbox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/fake_reminder_scheduler.dart';
 
 Future<void> startApp(
   WidgetTester tester, {
   bool onboardingDone = false,
   List<Note> notes = const [],
   Future<void> Function()? beforeLaunch,
+  FakeReminderScheduler? reminders,
 }) async {
   SharedPreferences.setMockInitialValues({
     'onboarding_done': onboardingDone,
@@ -48,7 +53,8 @@ Future<void> startApp(
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
-  ShareInbox.instance.pendingNote.value = null;
+  pendingNoteToOpen.value = null;
+  await Reminders.instance.init(reminders ?? FakeReminderScheduler());
   await beforeLaunch?.call();
   await tester.pumpWidget(const InkleafApp());
   // Splash animation, its hold, then the fade to the next screen.
@@ -724,6 +730,88 @@ void main() {
       );
       expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
       expect(NotesRepository.instance.notes.single.body, 'From another app');
+    });
+  });
+
+  group('reminders', () {
+    final t = DateTime(2026, 1, 1);
+    Note plan() => Note(id: 'p', title: 'Dentist', createdAt: t, updatedAt: t);
+
+    testWidgets('set a reminder from the editor; the card shows it', (
+      tester,
+    ) async {
+      final reminders = FakeReminderScheduler();
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [plan()],
+        reminders: reminders,
+      );
+      await tester.tap(find.text('Dentist'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remind me'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tomorrow morning'));
+      await tester.pumpAndSettle();
+
+      final at = NotesRepository.instance.byId('p')!.remindAt!;
+      expect((at.hour, at.minute), (9, 0));
+      expect(reminders.scheduled['p'], (at, 'Dentist'));
+      expect(find.textContaining('Tomorrow, 9:00'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Tomorrow, 9:00'), findsOneWidget);
+
+      // Clearing it from the editor cancels the notification.
+      await tester.tap(find.text('Dentist'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove reminder'));
+      await tester.pumpAndSettle();
+      expect(reminders.scheduled, isEmpty);
+      expect(find.text('Remind me'), findsOneWidget);
+    });
+
+    testWidgets('says so when notifications are turned off', (tester) async {
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [plan()],
+        reminders: FakeReminderScheduler(allowed: false),
+      );
+      await tester.tap(find.text('Dentist'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remind me'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next week'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Notifications are off'), findsOneWidget);
+      expect(NotesRepository.instance.byId('p')!.remindAt, isNotNull);
+    });
+
+    testWidgets('tapping a reminder opens its note', (tester) async {
+      final reminders = FakeReminderScheduler();
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [plan()],
+        reminders: reminders,
+      );
+      reminders.tap('p');
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(TextField, 'Dentist'), findsOneWidget);
+    });
+
+    testWidgets('a reminder that launched the app opens after the splash', (
+      tester,
+    ) async {
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [plan()],
+        reminders: FakeReminderScheduler(launchedBy: 'p'),
+      );
+      expect(find.widgetWithText(TextField, 'Dentist'), findsOneWidget);
     });
   });
 
