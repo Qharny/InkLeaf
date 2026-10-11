@@ -19,12 +19,14 @@ import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
 import 'package:my_note/features/record/data/voice_recorder.dart';
 import 'package:my_note/features/scan/data/page_scanner.dart';
+import 'package:my_note/features/share/data/share_inbox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> startApp(
   WidgetTester tester, {
   bool onboardingDone = false,
   List<Note> notes = const [],
+  Future<void> Function()? beforeLaunch,
 }) async {
   SharedPreferences.setMockInitialValues({
     'onboarding_done': onboardingDone,
@@ -46,6 +48,8 @@ Future<void> startApp(
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
+  ShareInbox.instance.pendingNote.value = null;
+  await beforeLaunch?.call();
   await tester.pumpWidget(const InkleafApp());
   // Splash animation, its hold, then the fade to the next screen.
   await tester.pump(const Duration(seconds: 2));
@@ -661,6 +665,68 @@ void main() {
     });
   });
 
+  group('share into Inkleaf', () {
+    testWidgets('shared text and a link become a note that opens', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      ShareInbox.instance.receive([
+        (kind: SharedKind.text, value: 'https://example.com/article'),
+        (kind: SharedKind.text, value: 'Read this later'),
+      ]);
+      await tester.pumpAndSettle();
+
+      final note = NotesRepository.instance.notes.single;
+      expect(note.body, 'https://example.com/article\n\nRead this later');
+      expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('https://example.com/article'), findsOneWidget);
+    });
+
+    testWidgets('a shared photo is kept with the note', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      final photo = File(
+        '${Directory.systemTemp.createTempSync('inkleaf_share').path}/p.jpg',
+      )..writeAsStringSync('jpg');
+      ShareInbox.instance.receive([
+        (kind: SharedKind.image, value: photo.path),
+      ]);
+      await tester.pumpAndSettle();
+      final note = NotesRepository.instance.notes.single;
+      expect(
+        File(MediaStore.scans.pathOf(note.scanFile!)).existsSync(),
+        isTrue,
+      );
+      expect(find.byTooltip('Remove photo'), findsOneWidget);
+    });
+
+    testWidgets('nothing usable makes no note', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      expect(
+        ShareInbox.instance.receive([(kind: SharedKind.other, value: 'x')]),
+        isNull,
+      );
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+    });
+
+    testWidgets('a share that launched the app opens after the splash', (
+      tester,
+    ) async {
+      ShareReceiver.create = () => _FakeShareReceiver([
+        (kind: SharedKind.text, value: 'From another app'),
+      ]);
+      await startApp(
+        tester,
+        onboardingDone: true,
+        beforeLaunch: ShareInbox.instance.start,
+      );
+      expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+      expect(NotesRepository.instance.notes.single.body, 'From another app');
+    });
+  });
+
   group('draw', () {
     Future<void> openDraw(WidgetTester tester) async {
       await tester.tap(find.byTooltip('Create'));
@@ -961,4 +1027,20 @@ class _FakeBackupIo implements BackupIo {
 
   @override
   Future<Uint8List?> pick() async => toPick;
+}
+
+/// Delivers a canned share at launch and nothing afterwards.
+class _FakeShareReceiver implements ShareReceiver {
+  _FakeShareReceiver(this.atLaunch);
+
+  final List<SharedItem> atLaunch;
+
+  @override
+  Future<List<SharedItem>> initial() async => atLaunch;
+
+  @override
+  Stream<List<SharedItem>> stream() => const Stream.empty();
+
+  @override
+  Future<void> reset() async {}
 }

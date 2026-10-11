@@ -12,6 +12,7 @@ import '../../../core/widgets/doodles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
 import '../../notes/presentation/note_card.dart';
+import '../../share/data/share_inbox.dart';
 
 /// "Your desk": greeting, search, tag filters, pinned notes and the rest of
 /// the notes as a grid or list.
@@ -31,7 +32,24 @@ class _HomeScreenState extends State<HomeScreen> {
   NoteSort _sort = NoteSort.parse(AppPrefs.instance.noteSort);
 
   @override
+  void initState() {
+    super.initState();
+    // Open notes made from shares, including one that launched the app.
+    ShareInbox.instance.pendingNote.addListener(_openShared);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _openShared());
+  }
+
+  void _openShared() {
+    final inbox = ShareInbox.instance.pendingNote;
+    final id = inbox.value;
+    if (id == null || !mounted) return;
+    inbox.value = null;
+    context.push(AppRoutes.noteById(id));
+  }
+
+  @override
   void dispose() {
+    ShareInbox.instance.pendingNote.removeListener(_openShared);
     _search.dispose();
     super.dispose();
   }
