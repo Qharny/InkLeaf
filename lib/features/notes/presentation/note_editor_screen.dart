@@ -12,6 +12,7 @@ import '../../collections/presentation/collection_widgets.dart';
 import '../../home/presentation/home_screen.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
+import 'checklist_editor.dart';
 import 'note_card.dart';
 import 'scan_preview.dart';
 import 'voice_note_player.dart';
@@ -287,6 +288,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                   label: const Text('Tag'),
                   onPressed: _addTag,
                 ),
+                if (_note.checklist.isEmpty)
+                  ActionChip(
+                    avatar: const Icon(Icons.checklist_rounded, size: 18),
+                    label: const Text('Checklist'),
+                    onPressed: () => _update(
+                      _note.copyWith(checklist: [ChecklistItem.create()]),
+                      edited: true,
+                    ),
+                  ),
               ],
             ),
             if (_note.scanFile case final scan?)
@@ -338,6 +348,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ),
             SketchDivider(seed: _note.id.hashCode, color: scheme.outline),
+            if (_note.checklist.isNotEmpty) ...[
+              ChecklistEditor(
+                items: _note.checklist,
+                onChanged: (items) =>
+                    _update(_note.copyWith(checklist: items), edited: true),
+              ),
+              const SizedBox(height: 12),
+            ],
             TextField(
               controller: _body,
               style: text.bodyLarge?.copyWith(height: 1.5),

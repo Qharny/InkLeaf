@@ -36,7 +36,11 @@ List<SearchHit> searchNotes(Iterable<Note> notes, String query) {
     final score = _score(note, terms);
     if (score == null) continue;
     hits.add(
-      SearchHit(note: note, score: score, snippet: _snippet(note.body, terms)),
+      SearchHit(
+        note: note,
+        score: score,
+        snippet: _snippet(_text(note), terms),
+      ),
     );
   }
 
@@ -49,10 +53,14 @@ List<SearchHit> searchNotes(Iterable<Note> notes, String query) {
   return hits;
 }
 
+/// The note's searchable text: its body, then its checklist items.
+String _text(Note note) =>
+    [note.body, for (final item in note.checklist) item.text].join('\n');
+
 /// Relevance of [note], or null if some term doesn't match.
 int? _score(Note note, List<String> terms) {
   final title = note.title.toLowerCase();
-  final body = note.body.toLowerCase();
+  final body = _text(note).toLowerCase();
   var score = 0;
   for (final term in terms) {
     if (term.startsWith('#')) {

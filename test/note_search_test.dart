@@ -64,4 +64,16 @@ void main() {
     expect(hit.snippet, endsWith('…'));
     expect(hit.snippet, contains('needle'));
   });
+
+  test('finds words inside checklist items', () {
+    final shopping = Note(
+      id: 's',
+      title: 'Shopping',
+      checklist: const [ChecklistItem(id: 'i', text: 'Oat milk')],
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    final hit = searchNotes([shopping], 'oat').single;
+    expect(hit.snippet, contains('Oat milk'));
+  });
 }

@@ -42,7 +42,15 @@ class NoteCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final preview = note.preview;
-    final showSketch = preview.isEmpty && note.sketch.isNotEmpty;
+    final listed = [
+      for (final i in note.checklist)
+        if (i.text.trim().isNotEmpty) i,
+    ];
+    // With no text to preview, show the first few checklist items instead
+    // (they take the place of a sketch thumbnail).
+    final showItems = preview.isEmpty ? listed.take(3).toList() : const [];
+    final showSketch =
+        preview.isEmpty && listed.isEmpty && note.sketch.isNotEmpty;
     final sketch = Semantics(
       label: 'Sketch',
       child: CustomPaint(
@@ -148,6 +156,47 @@ class NoteCard extends StatelessWidget {
                     ],
                   ),
                 ),
+              if (listed.isNotEmpty) ...[
+                for (final item in showItems)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        Icon(
+                          item.done
+                              ? Icons.check_box_rounded
+                              : Icons.check_box_outline_blank_rounded,
+                          size: 16,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            item.text,
+                            style: text.bodyMedium?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                              decoration: item.done
+                                  ? TextDecoration.lineThrough
+                                  : null,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${listed.where((i) => i.done).length}/${listed.length} done',
+                    style: text.labelMedium?.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
               if (preview.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 if (fixedHeight) Flexible(child: previewText) else previewText,

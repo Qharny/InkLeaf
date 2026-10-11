@@ -607,6 +607,60 @@ void main() {
     });
   });
 
+  group('checklists', () {
+    testWidgets('build a checklist, tick it off, find it, trim it', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await tester.tap(find.text('Write your first note'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Title'), 'Shop');
+
+      await tester.tap(find.text('Checklist'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'List item'),
+        'Milk',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.next);
+      await tester.pumpAndSettle();
+      // The new, empty item is the last one.
+      await tester.enterText(
+        find.widgetWithText(TextField, 'List item').last,
+        'Eggs',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(Checkbox).first);
+      await tester.pumpAndSettle();
+      expect(find.text('1/2 done'), findsOneWidget);
+      expect(find.text('Checklist'), findsOneWidget, reason: 'chip is gone');
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('1/2 done'), findsOneWidget);
+      final note = NotesRepository.instance.notes.single;
+      expect(
+        [for (final i in note.checklist) (i.text, i.done)],
+        [('Milk', true), ('Eggs', false)],
+      );
+
+      await tester.tap(find.text('Search').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Search titles, text and #tags'),
+        'eggs',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('1 result'), findsOneWidget);
+
+      await tester.tap(find.textContaining('Shop', findRichText: true).first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Remove item').last);
+      await tester.pumpAndSettle();
+      expect(find.text('1/1 done'), findsOneWidget);
+    });
+  });
+
   group('draw', () {
     Future<void> openDraw(WidgetTester tester) async {
       await tester.tap(find.byTooltip('Create'));
