@@ -5,6 +5,8 @@ import '../../../app/router.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../../core/storage/app_prefs.dart';
 import '../../../core/widgets/app_logo.dart';
+import '../../backup/data/backup_io.dart';
+import '../../backup/data/backup_service.dart';
 import '../../canvas/data/boards_repository.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../notes/data/notes_repository.dart';
@@ -26,6 +28,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(const SnackBar(content: Text('Recent searches cleared')));
+  }
+
+  Future<void> _export() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final now = DateTime.now();
+      await BackupIo.create().share(
+        BackupService.export(now: now),
+        BackupService.fileName(now),
+      );
+    } on Exception {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text("Couldn't create the backup")),
+        );
+    }
+  }
+
+  Future<void> _restore() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final bytes = await BackupIo.create().pick();
+    if (bytes == null) return;
+    final String message;
+    try {
+      final restored = BackupService.restore(bytes);
+      NotesRepository.instance.reload();
+      BoardsRepository.instance.reload();
+      CollectionsRepository.instance.reload();
+      message = restored.notes + restored.boards + restored.collections == 0
+          ? 'Everything in that backup is already here'
+          : 'Restored ${[_count(restored.notes, 'note'), _count(restored.boards, 'canvas'), _count(restored.collections, 'collection')].join(', ')}';
+    } on FormatException catch (e) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text("Can't restore: ${e.message}")));
+      return;
+    }
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _replayIntro() async {
@@ -113,6 +156,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
               ],
             ),
+          ),
+          const _Section('Backup'),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('Export a backup'),
+            subtitle: const Text(
+              'Notes, canvases, collections, recordings and scans in one '
+              '.zip you can save or send',
+            ),
+            onTap: _export,
+          ),
+          ListTile(
+            leading: const Icon(Icons.restore_rounded),
+            title: const Text('Restore from a backup'),
+            subtitle: const Text(
+              'Adds what is missing here and keeps the newer copy of '
+              'anything changed in both places. Nothing is deleted.',
+            ),
+            onTap: _restore,
           ),
           const _Section('About'),
           ListTile(

@@ -14,15 +14,29 @@ class CollectionsRepository extends ChangeNotifier {
 
   static Future<void> init() async {
     final db = AppDatabase.instance;
+    instance = CollectionsRepository._(db, _load(db), _loadOrder(db));
+  }
+
+  static Map<String, Collection> _load(AppDatabase db) => {
+    for (final json in db.readAll(AppDatabase.collections))
+      json['id']! as String: Collection.fromJson(json),
+  };
+
+  static List<String> _loadOrder(AppDatabase db) {
     final order = db.meta(AppDatabase.collectionsOrderKey);
-    instance = CollectionsRepository._(
-      db,
-      {
-        for (final json in db.readAll(AppDatabase.collections))
-          json['id']! as String: Collection.fromJson(json),
-      },
-      order == null ? [] : (jsonDecode(order) as List<Object?>).cast<String>(),
-    );
+    return order == null
+        ? []
+        : (jsonDecode(order) as List<Object?>).cast<String>();
+  }
+
+  /// Re-reads every collection and the drawer order, e.g. after restoring
+  /// a backup.
+  void reload() {
+    _collections
+      ..clear()
+      ..addAll(_load(_db));
+    _order = _loadOrder(_db);
+    notifyListeners();
   }
 
   final AppDatabase _db;

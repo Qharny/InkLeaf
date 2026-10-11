@@ -13,10 +13,20 @@ class NotesRepository extends ChangeNotifier {
 
   static Future<void> init() async {
     final db = AppDatabase.instance;
-    instance = NotesRepository._(db, {
-      for (final json in db.readAll(AppDatabase.notes))
-        json['id']! as String: Note.fromJson(json),
-    });
+    instance = NotesRepository._(db, _load(db));
+  }
+
+  static Map<String, Note> _load(AppDatabase db) => {
+    for (final json in db.readAll(AppDatabase.notes))
+      json['id']! as String: Note.fromJson(json),
+  };
+
+  /// Re-reads every note, e.g. after restoring a backup.
+  void reload() {
+    _notes
+      ..clear()
+      ..addAll(_load(_db));
+    notifyListeners();
   }
 
   final AppDatabase _db;

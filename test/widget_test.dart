@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +10,8 @@ import 'package:my_note/app/app.dart';
 import 'package:my_note/core/storage/app_database.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
 import 'package:my_note/core/storage/media_store.dart';
+import 'package:my_note/features/backup/data/backup_io.dart';
+import 'package:my_note/features/backup/data/backup_service.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
@@ -544,9 +547,59 @@ void main() {
       expect(prefs.getString('theme_mode'), 'dark');
     });
 
+    testWidgets('export hands a backup zip to the share sheet', (tester) async {
+      final io = _FakeBackupIo();
+      BackupIo.create = () => io;
+      final t = DateTime(2026, 1, 1);
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [Note(id: 'a', title: 'Saved', createdAt: t, updatedAt: t)],
+      );
+      await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Export a backup'), 200);
+      await tester.tap(find.text('Export a backup'));
+      await tester.pumpAndSettle();
+      expect(io.sharedName, startsWith('inkleaf-backup-'));
+
+      // The shared zip restores the note on a fresh device.
+      AppDatabase.openInMemory();
+      expect(BackupService.restore(io.shared!).notes, 1);
+    });
+
+    testWidgets('restore merges a backup and shows what came back', (
+      tester,
+    ) async {
+      final t = DateTime(2026, 1, 1);
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [Note(id: 'a', title: 'Backed up', createdAt: t, updatedAt: t)],
+      );
+      final zip = BackupService.export();
+      final io = _FakeBackupIo()..toPick = zip;
+      BackupIo.create = () => io;
+      NotesRepository.instance.delete('a');
+      await tester.pumpAndSettle();
+      expect(find.text('Nothing here yet'), findsOneWidget);
+
+      await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Restore from a backup'), 200);
+      await tester.tap(find.text('Restore from a backup'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Restored 1 note, 0 canvases, 0 collections'),
+        findsOneWidget,
+      );
+      expect(NotesRepository.instance.byId('a')?.title, 'Backed up');
+    });
+
     testWidgets('replay the intro', (tester) async {
       await startApp(tester, onboardingDone: true);
       await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Replay the intro'), 200);
+      await tester.ensureVisible(find.text('Replay the intro'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Replay the intro'));
       await tester.pumpAndSettle();
       expect(find.text('in ink'), findsOneWidget);
@@ -838,4 +891,20 @@ class _FakeRecorder implements VoiceRecorder {
 
   @override
   Future<void> dispose() async {}
+}
+
+/// Records what would be shared and returns a canned backup when picking.
+class _FakeBackupIo implements BackupIo {
+  Uint8List? shared;
+  String? sharedName;
+  Uint8List? toPick;
+
+  @override
+  Future<void> share(Uint8List bytes, String fileName) async {
+    shared = bytes;
+    sharedName = fileName;
+  }
+
+  @override
+  Future<Uint8List?> pick() async => toPick;
 }
