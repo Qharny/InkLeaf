@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -372,7 +373,7 @@ void main() {
     ) async {
       await startApp(tester, onboardingDone: true, notes: seed);
       await openTab(tester);
-      expect(find.text('Your bookshelf'), findsOneWidget);
+      expect(find.text('An empty drawer'), findsOneWidget);
 
       await tester.tap(find.text('New collection'));
       await tester.pumpAndSettle();
@@ -381,6 +382,9 @@ void main() {
       expect(find.text('Give it a name'), findsOneWidget);
       await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Recipes');
       await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+      // The new folder drops into the drawer; open it.
+      await tester.tap(find.text('Recipes'));
       await tester.pumpAndSettle();
       expect(find.widgetWithText(AppBar, 'Recipes'), findsOneWidget);
       expect(find.text('This notebook is empty'), findsOneWidget);
@@ -446,15 +450,69 @@ void main() {
       await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Temp');
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('Temp'));
+      await tester.pumpAndSettle();
 
       await tester.tap(find.byTooltip('More'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Delete collection'));
       await tester.pumpAndSettle();
-      expect(find.text('Your bookshelf'), findsOneWidget);
+      expect(find.text('An empty drawer'), findsOneWidget);
       await tester.tap(find.text('Undo'));
       await tester.pumpAndSettle();
       expect(find.text('Temp'), findsOneWidget);
+    });
+
+    Future<void> createCollection(WidgetTester tester, String name) async {
+      await tester.tap(find.byTooltip('New collection'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.widgetWithText(TextField, 'Name'), name);
+      await tester.tap(find.text('Create'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('long-press and drag a folder to reorder the drawer', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openTab(tester);
+      await createCollection(tester, 'Older');
+      await createCollection(tester, 'Newer');
+      List<String> names() => [
+        for (final c in CollectionsRepository.instance.collections) c.name,
+      ];
+      expect(names(), ['Newer', 'Older'], reason: 'new folders go in front');
+
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text('Newer')),
+      );
+      await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+      for (var i = 0; i < 6; i++) {
+        await gesture.moveBy(const Offset(0, 25));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(names(), ['Older', 'Newer']);
+    });
+
+    testWidgets('remove from the folder menu slides it out; undo returns', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openTab(tester);
+      await createCollection(tester, 'Old trips');
+
+      await tester.tap(find.byTooltip('Folder options'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete collection'));
+      await tester.pumpAndSettle();
+      expect(CollectionsRepository.instance.collections, isEmpty);
+      expect(find.text('An empty drawer'), findsOneWidget);
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Old trips'), findsOneWidget);
     });
   });
 

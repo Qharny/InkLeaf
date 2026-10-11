@@ -10,10 +10,18 @@ import '../../notes/data/notes_repository.dart';
 import '../data/collections_repository.dart';
 import '../domain/collection.dart';
 import 'collection_widgets.dart';
+import 'folder_drawer.dart';
 
-/// The Collections tab: every collection as a notebook on a shelf.
-class CollectionsScreen extends StatelessWidget {
+/// The Collections tab: every collection as a folder in an open drawer.
+class CollectionsScreen extends StatefulWidget {
   const CollectionsScreen({super.key});
+
+  @override
+  State<CollectionsScreen> createState() => _CollectionsScreenState();
+}
+
+class _CollectionsScreenState extends State<CollectionsScreen> {
+  final _drawer = GlobalKey<FolderDrawerState>();
 
   Future<void> _create(BuildContext context) async {
     final details = await showCollectionForm(context);
@@ -24,7 +32,10 @@ class CollectionsScreen extends StatelessWidget {
       cover: details.cover,
     );
     CollectionsRepository.instance.save(collection);
-    context.go(AppRoutes.collectionById(collection.id));
+    // Once the new folder is in the drawer, drop it in from above.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _drawer.currentState?.dropIn(collection.id),
+    );
   }
 
   @override
@@ -47,26 +58,15 @@ class CollectionsScreen extends StatelessWidget {
         builder: (context, _) {
           final collections = repo.collections;
           if (collections.isEmpty) {
-            return _EmptyShelf(onCreate: () => _create(context));
+            return _EmptyDrawer(onCreate: () => _create(context));
           }
-          return GridView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 200,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.78,
-            ),
-            itemCount: collections.length,
-            itemBuilder: (context, i) {
-              final c = collections[i];
-              return CollectionCover(
-                collection: c,
-                subtitle: noteCountLabel(liveNotesIn(c).length),
-                onTap: () => context.go(AppRoutes.collectionById(c.id)),
-                onLongPress: () => _showActions(context, c),
-              );
-            },
+          return FolderDrawer(
+            key: _drawer,
+            collections: collections,
+            noteCount: (c) => liveNotesIn(c).length,
+            onOpen: (c) => context.go(AppRoutes.collectionById(c.id)),
+            onMore: (c) => _showActions(context, c),
+            onReorder: repo.reorder,
           );
         },
       ),
@@ -104,7 +104,15 @@ class CollectionsScreen extends StatelessWidget {
               subtitle: const Text('Its notes are kept'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                deleteCollection(messenger, collection);
+                final drawer = _drawer.currentState;
+                if (drawer == null) {
+                  deleteCollection(messenger, collection);
+                } else {
+                  drawer.removeAnimated(
+                    collection.id,
+                    () => deleteCollection(messenger, collection),
+                  );
+                }
               },
             ),
             const SizedBox(height: 8),
@@ -149,8 +157,8 @@ void deleteCollection(ScaffoldMessengerState messenger, Collection collection) {
     );
 }
 
-class _EmptyShelf extends StatelessWidget {
-  const _EmptyShelf({required this.onCreate});
+class _EmptyDrawer extends StatelessWidget {
+  const _EmptyDrawer({required this.onCreate});
 
   final VoidCallback onCreate;
 
@@ -165,7 +173,7 @@ class _EmptyShelf extends StatelessWidget {
             const Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(Icons.auto_stories_outlined, size: 64),
+                Icon(Icons.folder_copy_outlined, size: 64),
                 Positioned(
                   right: -26,
                   top: -14,
@@ -176,12 +184,12 @@ class _EmptyShelf extends StatelessWidget {
             const SizedBox(height: 20),
             MarkerHighlight(
               color: AppColors.markerPurple,
-              child: Text('Your bookshelf', style: text.headlineSmall),
+              child: Text('An empty drawer', style: text.headlineSmall),
             ),
             const SizedBox(height: 8),
             Text(
-              'Gather related notes into notebooks: recipes, a trip, a '
-              'class. A note can live in more than one.',
+              'File related notes into folders: recipes, a trip, a class. '
+              'A note can live in more than one.',
               style: text.bodyLarge?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),

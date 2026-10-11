@@ -8,11 +8,12 @@ import '../domain/collection.dart';
 /// All collections, kept in memory and saved to [SharedPreferences] as
 /// JSON. Listen to it to rebuild when a collection changes.
 class CollectionsRepository extends ChangeNotifier {
-  CollectionsRepository._(this._prefs, this._collections);
+  CollectionsRepository._(this._prefs, this._collections, this._order);
 
   static late CollectionsRepository instance;
 
   static const _key = 'collections';
+  static const _orderKey = 'collections_order';
 
   static Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
@@ -24,16 +25,41 @@ class CollectionsRepository extends ChangeNotifier {
         collections[c.id] = c;
       }
     }
-    instance = CollectionsRepository._(prefs, collections);
+    instance = CollectionsRepository._(
+      prefs,
+      collections,
+      prefs.getStringList(_orderKey) ?? [],
+    );
   }
 
   final SharedPreferences _prefs;
   final Map<String, Collection> _collections;
 
-  /// Collections, most recently changed first.
-  List<Collection> get collections =>
-      _collections.values.toList()
-        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+  /// Drawer order, front first. A deleted collection's id stays, so undoing
+  /// the delete puts the folder back where it was.
+  List<String> _order;
+
+  /// Collections in drawer order. Any missing from the saved order (from
+  /// before reordering existed) come first, most recently changed first.
+  List<Collection> get collections {
+    final rank = {for (var i = 0; i < _order.length; i++) _order[i]: i};
+    return _collections.values.toList()..sort((a, b) {
+      final ra = rank[a.id], rb = rank[b.id];
+      if (ra == null && rb == null) return b.updatedAt.compareTo(a.updatedAt);
+      if (ra == null) return -1;
+      if (rb == null) return 1;
+      return ra.compareTo(rb);
+    });
+  }
+
+  /// Moves the collection at [from] to [to], in [collections] order.
+  void reorder(int from, int to) {
+    final ids = [for (final c in collections) c.id];
+    if (from == to || from < 0 || from >= ids.length) return;
+    ids.insert(to.clamp(0, ids.length - 1), ids.removeAt(from));
+    _order = ids;
+    _changed();
+  }
 
   Collection? byId(String id) => _collections[id];
 
@@ -43,6 +69,8 @@ class CollectionsRepository extends ChangeNotifier {
 
   /// Adds [collection] or replaces the one with the same id.
   void save(Collection collection) {
+    // New folders go in at the front of the drawer.
+    if (!_order.contains(collection.id)) _order.insert(0, collection.id);
     _collections[collection.id] = collection;
     _changed();
   }
@@ -95,5 +123,6 @@ class CollectionsRepository extends ChangeNotifier {
       _key,
       jsonEncode([for (final c in _collections.values) c.toJson()]),
     );
+    _prefs.setStringList(_orderKey, _order);
   }
 }
