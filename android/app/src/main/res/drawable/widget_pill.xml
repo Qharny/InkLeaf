@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A quick-capture button on the widget: pencil-yellow pill, ink outline. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#F6E7B9" />
+    <stroke android:width="1.5dp" android:color="#292B28" />
+    <corners android:radius="20dp" />
+</shape>
