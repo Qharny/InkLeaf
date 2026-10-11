@@ -16,6 +16,7 @@ class AppPrefs {
   static const _noteSortKey = 'note_sort';
   static const _recentSearchesKey = 'recent_searches';
   static const _themeModeKey = 'theme_mode';
+  static const _appLockKey = 'app_lock';
   static const _maxRecentSearches = 8;
 
   final SharedPreferences _prefs;
@@ -26,6 +27,11 @@ class AppPrefs {
 
   /// Shows the intro again on the next launch.
   Future<void> resetOnboarding() => _prefs.setBool(_onboardingDoneKey, false);
+
+  /// Whether Inkleaf asks for the phone's fingerprint, face or PIN.
+  bool get appLock => _prefs.getBool(_appLockKey) ?? false;
+
+  Future<void> setAppLock(bool value) => _prefs.setBool(_appLockKey, value);
 
   /// Light paper (the default), the night desk, or whatever the system uses.
   late final ValueNotifier<ThemeMode> themeMode = ValueNotifier(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/notes/presentation/note_templates.dart';
 import 'router.dart';
 import 'theme/sketch_styles.dart';
 
@@ -88,6 +89,14 @@ Future<void> showQuickCreateSheet(BuildContext context) {
               leading: const Icon(Icons.edit_note_rounded),
               title: const Text('New note'),
               onTap: () => open(AppRoutes.newNote),
+            ),
+            ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined),
+              title: const Text('From template'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                showTemplatePicker(context);
+              },
             ),
             ListTile(
               leading: const Icon(Icons.document_scanner_outlined),

@@ -25,6 +25,10 @@
 
 **Write and capture**
 - **Notes** with titles, tags, colors and pinning. Changes save as you type.
+- **Formatting**: headings, **bold**, *italic*, ~~strike~~ and lists, drawn
+  as you type, with a toolbar above the keyboard.
+- **Templates**: start a daily journal, meeting notes, packing list, recipe
+  or to-do from the + menu.
 - **Checklists**: tick items off with a pencil strike-through; cards show
   progress like "2/4 done".
 - **Sketches**: draw on a full-screen pad with pens, colors and an eraser.
@@ -35,6 +39,8 @@
   a new note (Android).
 
 **Organize**
+- **Links between notes**: type `[[` to link another note; each note shows
+  what it links to and what links back to it.
 - **Collections**: notebooks shown as folders in an open drawer. Drag to
   reorder; a note can live in several.
 - **Canvas**: put sticky notes and your notes on a board, connect them with
@@ -47,6 +53,7 @@
   matches highlighted and recent searches remembered.
 
 **Keep it safe**
+- **App lock**: fingerprint, face or PIN to open Inkleaf.
 - **Local first**: a SQLite database on the device; no account or internet
   needed.
 - **Backup and restore**: export everything, including recordings and scans,
@@ -193,6 +200,7 @@ notifications, sharing) sit behind small interfaces so tests can use fakes.
 | Reminders | [flutter_local_notifications](https://pub.dev/packages/flutter_local_notifications), [timezone](https://pub.dev/packages/timezone), [flutter_timezone](https://pub.dev/packages/flutter_timezone) |
 | Backup | [archive](https://pub.dev/packages/archive), [share_plus](https://pub.dev/packages/share_plus), [file_picker](https://pub.dev/packages/file_picker) |
 | Sharing in | [receive_sharing_intent](https://pub.dev/packages/receive_sharing_intent) |
+| App lock | [local_auth](https://pub.dev/packages/local_auth) |
 | Fonts | [google_fonts](https://pub.dev/packages/google_fonts) with bundled font files |
 
 ## License

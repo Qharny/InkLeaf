@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/storage/app_prefs.dart';
+import '../features/lock/presentation/lock_gate.dart';
 import 'router.dart';
 import 'theme/app_theme.dart';
 
@@ -32,6 +33,7 @@ class _InkleafAppState extends State<InkleafApp> {
         darkTheme: AppTheme.dark,
         themeMode: themeMode,
         routerConfig: _router,
+        builder: (context, child) => LockGate(child: child!),
       ),
     );
   }
