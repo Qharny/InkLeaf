@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../app/theme/sketch_styles.dart';
 import '../domain/note.dart';
 
 /// A note's to-do list: tick items off, edit them in place, press Enter
@@ -175,9 +176,7 @@ class _ChecklistEditorState extends State<ChecklistEditor> {
                         textCapitalization: TextCapitalization.sentences,
                         textInputAction: TextInputAction.next,
                         style: style,
-                        decoration: const InputDecoration.collapsed(
-                          hintText: 'List item',
-                        ),
+                        decoration: pageInput('List item'),
                         onChanged: (v) =>
                             _change(item.id, (i) => i.copyWith(text: v)),
                         onSubmitted: (_) => _insertAfter(item.id),
