@@ -20,6 +20,7 @@ import '../domain/note.dart';
 import 'bin_animation.dart';
 import 'checklist_editor.dart';
 import 'note_card.dart';
+import 'rich_text.dart';
 import 'scan_preview.dart';
 import 'voice_note_player.dart';
 
@@ -48,7 +49,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
   Timer? _saveTimer;
   late Note _note;
   late final TextEditingController _title;
-  late final TextEditingController _body;
+  late final MarkdownController _body;
+  final _bodyFocus = FocusNode();
+
+  /// The `[[...` being typed in the body, while choosing a note to link.
+  String? _linkQuery;
   bool _missing = false;
 
   /// The reminder set in this visit, so only that one rings its bell.
@@ -67,7 +72,9 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     // New notes cycle through the pastels so the desk stays colorful.
     _note = existing ?? Note.create(color: _repo.notes.length % 5);
     _title = TextEditingController(text: _note.title);
-    _body = TextEditingController(text: _note.body);
+    _body = MarkdownController(text: _note.body)..addListener(_watchLink);
+    // The formatting toolbar shows while writing the body.
+    _bodyFocus.addListener(() => setState(() {}));
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -87,6 +94,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     }
     _title.dispose();
     _body.dispose();
+    _bodyFocus.dispose();
     super.dispose();
   }
 
@@ -286,6 +294,28 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     context.pop();
   }
 
+  void _watchLink() {
+    final query = _bodyFocus.hasFocus ? linkQuery(_body.value) : null;
+    if (query != _linkQuery) setState(() => _linkQuery = query);
+  }
+
+  /// The body changed through the toolbar or a link suggestion.
+  void _bodyEdited(String text) =>
+      _update(_note.copyWith(body: text), edited: true, typing: true);
+
+  void _openLinked(Note note) {
+    _save();
+    context.push(AppRoutes.noteById(note.id));
+  }
+
+  /// Makes the note a link points at, then opens it.
+  void _createLinked(String title) {
+    final created = Note.create(color: _repo.notes.length % 5)
+        .copyWith(title: title);
+    _repo.save(created);
+    _openLinked(created);
+  }
+
   /// Saves and closes, dismissing the keyboard.
   void _done() {
     FocusScope.of(context).unfocus();
@@ -312,6 +342,23 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
       },
       child: Scaffold(
         backgroundColor: noteFill(context, _note.color),
+        bottomNavigationBar: _bodyFocus.hasFocus
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_linkQuery case final query?)
+                    LinkSuggestions(
+                      query: query,
+                      exceptId: _note.id,
+                      onPick: (title) {
+                        completeLink(_body, title);
+                        _bodyEdited(_body.text);
+                      },
+                    ),
+                  FormatToolbar(controller: _body, onEdited: _bodyEdited),
+                ],
+              )
+            : null,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           actions: [
@@ -487,6 +534,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
             ],
             TextField(
               controller: _body,
+              focusNode: _bodyFocus,
               style: text.bodyLarge?.copyWith(height: 1.5),
               textCapitalization: TextCapitalization.sentences,
               keyboardType: TextInputType.multiline,
@@ -495,6 +543,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
               decoration: pageInput('Start writing…'),
               onChanged: (v) =>
                   _update(_note.copyWith(body: v), edited: true, typing: true),
+            ),
+            const SizedBox(height: 16),
+            NoteLinks(
+              note: _note,
+              onOpen: _openLinked,
+              onCreate: _createLinked,
             ),
             const SizedBox(height: 24),
             Text(

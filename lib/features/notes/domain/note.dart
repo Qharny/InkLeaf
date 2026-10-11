@@ -2,6 +2,20 @@ import 'package:flutter/foundation.dart';
 
 import '../../canvas/domain/board.dart';
 
+/// [text] without its formatting marks, for previews: headings lose their
+/// `#`, `**bold**`, `*italic*`, `~~strike~~` and `[[links]]` keep just their
+/// words, and `- ` list markers become bullets.
+String stripMarkdown(String text) => text
+    .replaceAll(RegExp(r'^#{1,3} ', multiLine: true), '')
+    .replaceAllMapped(
+      RegExp(r'^(\s*)[-*] ', multiLine: true),
+      (m) => '${m[1]}• ',
+    )
+    .replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'), (m) => m[1]!)
+    .replaceAllMapped(RegExp(r'~~(.+?)~~'), (m) => m[1]!)
+    .replaceAllMapped(RegExp(r'(?<![*\w])\*(?!\s)(.+?)\*'), (m) => m[1]!)
+    .replaceAllMapped(RegExp(r'\[\[(.+?)\]\]'), (m) => m[1]!);
+
 var _itemCounter = 0;
 
 /// One line of a note's checklist.
@@ -126,7 +140,7 @@ class Note {
   /// The title, or the first line of the body when there is no title.
   String get displayTitle {
     if (title.trim().isNotEmpty) return title.trim();
-    final firstLine = body.trim().split('\n').first;
+    final firstLine = stripMarkdown(body.trim().split('\n').first).trim();
     if (firstLine.isNotEmpty) return firstLine;
     for (final item in checklist) {
       if (item.text.trim().isNotEmpty) return item.text.trim();
@@ -138,7 +152,7 @@ class Note {
 
   /// Body text to preview under [displayTitle], without repeating it.
   String get preview {
-    final text = body.trim();
+    final text = stripMarkdown(body.trim());
     if (title.trim().isNotEmpty) return text;
     final newline = text.indexOf('\n');
     return newline == -1 ? '' : text.substring(newline + 1).trim();

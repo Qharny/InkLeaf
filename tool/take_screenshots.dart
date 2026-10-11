@@ -64,6 +64,16 @@ void main() {
     await _capture(t, 'editor');
   });
 
+  testWidgets('formatting and links', (t) async {
+    await _launch(t);
+    await t.tap(find.text('Weekend plan').first);
+    await _settle(t);
+    // Put the caret in the body so the formatting toolbar shows.
+    await t.tap(find.textContaining('Saturday', findRichText: true).first);
+    await _settle(t);
+    await _capture(t, 'formatting');
+  });
+
   testWidgets('collections drawer', (t) async {
     await _launch(t);
     await t.tap(find.widgetWithText(NavigationDestination, 'Collections'));
@@ -271,6 +281,20 @@ void _seed() {
       tags: ['reading'],
       remindAt: tomorrow7pm,
       minutesAgo: 40,
+    ),
+    note(
+      'weekend',
+      'Weekend plan',
+      body:
+          '## Saturday\n'
+          '- **Market** early, before the crowds\n'
+          '- Call *grandma*\n'
+          '- ~~Fix the bike~~ done!\n\n'
+          '## Sunday\n'
+          '1. Read on the balcony\n'
+          '2. Plan the trip: see [[Trip to Accra]]',
+      color: 1,
+      minutesAgo: 5,
     ),
     note(
       'trip',
