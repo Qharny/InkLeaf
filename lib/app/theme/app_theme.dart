@@ -188,7 +188,7 @@ abstract final class AppTheme {
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             color: states.contains(WidgetState.selected)
-                ? AppColors.ink
+                ? scheme.onSurface
                 : scheme.onSurfaceVariant,
           ),
         ),

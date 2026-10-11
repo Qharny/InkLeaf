@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../../core/utils/relative_time.dart';
+import '../../canvas/presentation/board_painters.dart';
 import '../domain/note.dart';
 
 /// The pastel paper fill for a note color index. On the night desk the
@@ -41,6 +42,13 @@ class NoteCard extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     final preview = note.preview;
+    final showSketch = preview.isEmpty && note.sketch.isNotEmpty;
+    final sketch = Semantics(
+      label: 'Sketch',
+      child: CustomPaint(
+        painter: SketchPainter(strokes: note.sketch, ink: scheme.onSurface),
+      ),
+    );
     final previewText = Text(
       preview,
       style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
@@ -90,11 +98,40 @@ class NoteCard extends StatelessWidget {
                     ),
                 ],
               ),
+              if (note.audio case final audio?)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.mic_none_rounded,
+                        size: 16,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        formatDuration(audio.duration),
+                        style: text.labelMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        semanticsLabel:
+                            'Recording, ${formatDuration(audio.duration)}',
+                      ),
+                    ],
+                  ),
+                ),
               if (preview.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 if (fixedHeight) Flexible(child: previewText) else previewText,
+              ] else if (showSketch) ...[
+                const SizedBox(height: 4),
+                if (fixedHeight)
+                  Expanded(child: sketch)
+                else
+                  SizedBox(height: 90, width: double.infinity, child: sketch),
               ],
-              if (fixedHeight) const Spacer(),
+              if (fixedHeight && !showSketch) const Spacer(),
               const SizedBox(height: 8),
               Row(
                 children: [

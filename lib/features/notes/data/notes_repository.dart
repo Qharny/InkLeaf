@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/storage/audio_store.dart';
 import '../domain/note.dart';
 
 /// All notes, kept in memory and saved to [SharedPreferences] as JSON.
@@ -79,14 +80,26 @@ class NotesRepository extends ChangeNotifier {
     save(note.copyWith(deletedAt: () => null));
   }
 
-  /// Removes the note for good.
+  /// Removes the note for good, with its recording.
   void delete(String id) {
-    if (_notes.remove(id) != null) _changed();
+    final note = _notes.remove(id);
+    if (note == null) return;
+    _deleteFiles(note);
+    _changed();
   }
 
   void emptyTrash() {
-    _notes.removeWhere((_, n) => n.inTrash);
+    final trashed = _notes.values.where((n) => n.inTrash).toList();
+    for (final note in trashed) {
+      _notes.remove(note.id);
+      _deleteFiles(note);
+    }
     _changed();
+  }
+
+  void _deleteFiles(Note note) {
+    final audio = note.audio;
+    if (audio != null) AudioStore.delete(audio.fileName);
   }
 
   void _changed() {

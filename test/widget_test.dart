@@ -1,15 +1,18 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_note/app/app.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
+import 'package:my_note/core/storage/audio_store.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
+import 'package:my_note/features/record/data/voice_recorder.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> startApp(
@@ -22,6 +25,7 @@ Future<void> startApp(
     'notes': jsonEncode([for (final n in notes) n.toJson()]),
   });
   await AppPrefs.init();
+  AudioStore.directory = Directory.systemTemp.createTempSync('inkleaf_audio');
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
@@ -447,4 +451,231 @@ void main() {
       expect(find.text('Temp'), findsOneWidget);
     });
   });
+
+  group('settings', () {
+    Future<void> openSettings(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('switches to the night theme and remembers it', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openSettings(tester);
+      await tester.tap(find.text('Night'));
+      await tester.pumpAndSettle();
+      expect(
+        Theme.of(tester.element(find.text('Night'))).brightness,
+        Brightness.dark,
+      );
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('theme_mode'), 'dark');
+    });
+
+    testWidgets('replay the intro', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openSettings(tester);
+      await tester.tap(find.text('Replay the intro'));
+      await tester.pumpAndSettle();
+      expect(find.text('in ink'), findsOneWidget);
+      expect(AppPrefs.instance.onboardingDone, isFalse);
+    });
+  });
+
+  group('draw', () {
+    Future<void> openDraw(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Draw'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('+ Draw makes a sketch note, opened for titling', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openDraw(tester);
+      expect(find.widgetWithText(AppBar, 'Sketch'), findsOneWidget);
+
+      await tester.dragFrom(const Offset(200, 200), const Offset(150, 80));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      final note = NotesRepository.instance.notes.single;
+      expect(note.sketch, hasLength(1));
+      expect(find.widgetWithText(TextField, 'Title'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Sketch'), findsOneWidget);
+    });
+
+    testWidgets('leaving an empty sketch pad saves nothing', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openDraw(tester);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+      expect(find.text('Nothing here yet'), findsOneWidget);
+    });
+
+    testWidgets('add a sketch to an existing note, then erase it', (
+      tester,
+    ) async {
+      final t = DateTime(2026, 1, 1);
+      await startApp(
+        tester,
+        onboardingDone: true,
+        notes: [Note(id: 'a', title: 'Plan', createdAt: t, updatedAt: t)],
+      );
+      await tester.tap(find.text('Plan'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Sketch'));
+      await tester.pumpAndSettle();
+      await tester.dragFrom(const Offset(100, 200), const Offset(200, 0));
+      await tester.pumpAndSettle();
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.byId('a')!.sketch, hasLength(1));
+
+      await tester.tap(find.bySemanticsLabel('Sketch. Tap to edit'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Eraser'));
+      await tester.dragFrom(const Offset(200, 150), const Offset(0, 100));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.byId('a')!.sketch, isEmpty);
+    });
+  });
+
+  group('record', () {
+    tearDown(() => VoiceRecorder.create = _FakeRecorder.new);
+    setUp(() => VoiceRecorder.create = _FakeRecorder.new);
+
+    Future<void> openRecorder(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Record'));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> startRecording(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Start recording'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+    }
+
+    testWidgets('record, stop and save makes a voice note', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      expect(find.text('Tap to start recording'), findsOneWidget);
+
+      await startRecording(tester);
+      expect(find.text('Recording…'), findsOneWidget);
+      await tester.tap(find.byTooltip('Pause'));
+      await tester.pump();
+      expect(find.text('Paused'), findsOneWidget);
+      await tester.tap(find.byTooltip('Resume'));
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+      final note = NotesRepository.instance.notes.single;
+      expect(note.audio, isNotNull);
+      expect(
+        File(AudioStore.pathOf(note.audio!.fileName)).existsSync(),
+        isTrue,
+      );
+      expect(find.byTooltip('Play recording'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Voice note'), findsOneWidget);
+    });
+
+    testWidgets('a refused microphone explains and offers to retry', (
+      tester,
+    ) async {
+      VoiceRecorder.create = () => _FakeRecorder(allowed: false);
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await tester.tap(find.byTooltip('Start recording'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('needs microphone access'), findsOneWidget);
+      expect(find.byTooltip('Try again'), findsOneWidget);
+    });
+
+    testWidgets('discard drops the recording', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Discard'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+      expect(AudioStore.directory.listSync(), isEmpty);
+    });
+
+    testWidgets('removing the only recording empties and discards the note', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('Remove recording'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Remove'));
+      await tester.pumpAndSettle();
+      expect(find.byTooltip('Play recording'), findsNothing);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(NotesRepository.instance.notes, isEmpty);
+    });
+  });
+}
+
+/// Writes a placeholder file instead of using the microphone.
+class _FakeRecorder implements VoiceRecorder {
+  _FakeRecorder({this.allowed = true});
+
+  final bool allowed;
+  String? _path;
+
+  @override
+  Future<bool> hasPermission() async => allowed;
+
+  @override
+  Future<void> start(String path) async {
+    File(path).writeAsStringSync('audio');
+    _path = path;
+  }
+
+  @override
+  Future<void> pause() async {}
+
+  @override
+  Future<void> resume() async {}
+
+  @override
+  Future<String?> stop() async => _path;
+
+  @override
+  Future<void> cancel() async {
+    final path = _path;
+    if (path != null) File(path).deleteSync();
+    _path = null;
+  }
+
+  @override
+  Stream<double> levels() => Stream.fromIterable(const [0.2, 0.7, 0.4]);
+
+  @override
+  Future<void> dispose() async {}
 }

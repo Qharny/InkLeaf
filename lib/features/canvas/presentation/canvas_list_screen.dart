@@ -170,7 +170,7 @@ class _BoardTile extends StatelessWidget {
                           size: Size.infinite,
                           painter: BoardThumbnailPainter(
                             board: board,
-                            ink: scheme.outline,
+                            ink: scheme.onSurface,
                           ),
                         ),
                       ),

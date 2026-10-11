@@ -20,20 +20,25 @@ class SparkRays extends StatelessWidget {
     super.key,
     this.size = 40,
     this.angle = -math.pi * 3 / 4,
-    this.color = AppColors.ink,
+    this.color,
   });
 
   final double size;
 
   /// Direction the rays point, in radians (0 = right).
   final double angle;
-  final Color color;
+
+  /// Defaults to the theme's text color.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => ExcludeSemantics(
     child: CustomPaint(
       size: Size.square(size),
-      painter: _RaysPainter(angle, color),
+      painter: _RaysPainter(
+        angle,
+        color ?? Theme.of(context).colorScheme.onSurface,
+      ),
     ),
   );
 }

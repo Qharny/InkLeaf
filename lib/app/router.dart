@@ -7,10 +7,15 @@ import '../features/canvas/presentation/canvas_list_screen.dart';
 import '../features/collections/presentation/collection_detail_screen.dart';
 import '../features/collections/presentation/collections_screen.dart';
 import '../features/home/presentation/home_screen.dart';
+import '../features/canvas/domain/board.dart';
+import '../features/notes/data/notes_repository.dart';
 import '../features/notes/presentation/note_editor_screen.dart';
+import '../features/notes/presentation/sketch_pad_screen.dart';
 import '../features/notes/presentation/trash_screen.dart';
 import '../features/onboarding/presentation/onboarding_screen.dart';
+import '../features/record/presentation/record_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
 
@@ -29,11 +34,16 @@ abstract final class AppRoutes {
   // Full-screen routes (shown above the bottom navigation).
   static const newNote = '/notes/new';
   static const note = '/notes/:noteId';
+  static const sketch = '/notes/:noteId/sketch';
   static const scan = '/scan';
   static const settings = '/settings';
   static const trash = '/trash';
 
   static String noteById(String id) => '/notes/$id';
+
+  /// Sketch pad for a note. Push with the current strokes as `extra`; the
+  /// route returns the edited strokes.
+  static String sketchFor(String noteId) => '/notes/$noteId/sketch';
   static String collectionById(String id) => '$collections/$id';
   static String canvasById(String id) => '$canvas/$id';
 
@@ -132,14 +142,24 @@ GoRouter createRouter() {
         parentNavigatorKey: rootKey,
         builder: (_, state) =>
             switch (NoteMode.parse(state.uri.queryParameters['mode'])) {
+              NoteMode.draw => const SketchPadScreen(createNote: true),
+              NoteMode.record => const RecordScreen(),
               NoteMode.text => NoteEditorScreen(
                 collectionId: state.uri.queryParameters['collection'],
               ),
-              final mode => PlaceholderScreen(
-                title: 'New note',
-                subtitle: mode.name,
-              ),
             },
+      ),
+      GoRoute(
+        path: AppRoutes.sketch,
+        parentNavigatorKey: rootKey,
+        builder: (_, state) => SketchPadScreen(
+          initial:
+              state.extra as List<BoardStroke>? ??
+              NotesRepository.instance
+                  .byId(state.pathParameters['noteId']!)
+                  ?.sketch ??
+              const [],
+        ),
       ),
       GoRoute(
         path: AppRoutes.note,
@@ -159,7 +179,7 @@ GoRouter createRouter() {
       GoRoute(
         path: AppRoutes.settings,
         parentNavigatorKey: rootKey,
-        builder: (_, _) => const PlaceholderScreen(title: 'Settings'),
+        builder: (_, _) => const SettingsScreen(),
       ),
       GoRoute(
         path: AppRoutes.trash,
