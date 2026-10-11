@@ -1,38 +1,31 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/storage/app_database.dart';
 import '../domain/collection.dart';
 
-/// All collections, kept in memory and saved to [SharedPreferences] as
-/// JSON. Listen to it to rebuild when a collection changes.
+/// All collections, kept in memory and saved to the [AppDatabase], one row
+/// per collection. Listen to it to rebuild when a collection changes.
 class CollectionsRepository extends ChangeNotifier {
-  CollectionsRepository._(this._prefs, this._collections, this._order);
+  CollectionsRepository._(this._db, this._collections, this._order);
 
   static late CollectionsRepository instance;
 
-  static const _key = 'collections';
-  static const _orderKey = 'collections_order';
-
   static Future<void> init() async {
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_key);
-    final collections = <String, Collection>{};
-    if (raw != null) {
-      for (final json in (jsonDecode(raw) as List<Object?>)) {
-        final c = Collection.fromJson((json! as Map).cast<String, Object?>());
-        collections[c.id] = c;
-      }
-    }
+    final db = AppDatabase.instance;
+    final order = db.meta(AppDatabase.collectionsOrderKey);
     instance = CollectionsRepository._(
-      prefs,
-      collections,
-      prefs.getStringList(_orderKey) ?? [],
+      db,
+      {
+        for (final json in db.readAll(AppDatabase.collections))
+          json['id']! as String: Collection.fromJson(json),
+      },
+      order == null ? [] : (jsonDecode(order) as List<Object?>).cast<String>(),
     );
   }
 
-  final SharedPreferences _prefs;
+  final AppDatabase _db;
   final Map<String, Collection> _collections;
 
   /// Drawer order, front first. A deleted collection's id stays, so undoing
@@ -58,7 +51,8 @@ class CollectionsRepository extends ChangeNotifier {
     if (from == to || from < 0 || from >= ids.length) return;
     ids.insert(to.clamp(0, ids.length - 1), ids.removeAt(from));
     _order = ids;
-    _changed();
+    _saveOrder();
+    notifyListeners();
   }
 
   Collection? byId(String id) => _collections[id];
@@ -70,14 +64,22 @@ class CollectionsRepository extends ChangeNotifier {
   /// Adds [collection] or replaces the one with the same id.
   void save(Collection collection) {
     // New folders go in at the front of the drawer.
-    if (!_order.contains(collection.id)) _order.insert(0, collection.id);
+    final isNew = !_order.contains(collection.id);
+    if (isNew) _order.insert(0, collection.id);
+    _db.transaction(() {
+      _db.put(AppDatabase.collections, collection.id, collection.toJson());
+      if (isNew) _saveOrder();
+    });
     _collections[collection.id] = collection;
-    _changed();
+    notifyListeners();
   }
 
   /// Removes the collection. Its notes are untouched.
   void delete(String id) {
-    if (_collections.remove(id) != null) _changed();
+    if (!_collections.containsKey(id)) return;
+    _db.remove(AppDatabase.collections, id);
+    _collections.remove(id);
+    notifyListeners();
   }
 
   void addNote(String collectionId, String noteId) {
@@ -106,23 +108,26 @@ class CollectionsRepository extends ChangeNotifier {
   /// Puts [noteId] in exactly the collections in [collectionIds].
   void setMembership(String noteId, Set<String> collectionIds) {
     final now = DateTime.now();
-    var changed = false;
-    for (final c in _collections.values.toList()) {
-      final want = collectionIds.contains(c.id);
-      if (want == c.contains(noteId)) continue;
-      _collections[c.id] = (want ? c.withNote(noteId) : c.withoutNote(noteId))
-          .copyWith(updatedAt: now);
-      changed = true;
+    final changed = [
+      for (final c in _collections.values)
+        if (collectionIds.contains(c.id) != c.contains(noteId))
+          (collectionIds.contains(c.id)
+                  ? c.withNote(noteId)
+                  : c.withoutNote(noteId))
+              .copyWith(updatedAt: now),
+    ];
+    if (changed.isEmpty) return;
+    _db.transaction(() {
+      for (final c in changed) {
+        _db.put(AppDatabase.collections, c.id, c.toJson());
+      }
+    });
+    for (final c in changed) {
+      _collections[c.id] = c;
     }
-    if (changed) _changed();
+    notifyListeners();
   }
 
-  void _changed() {
-    notifyListeners();
-    _prefs.setString(
-      _key,
-      jsonEncode([for (final c in _collections.values) c.toJson()]),
-    );
-    _prefs.setStringList(_orderKey, _order);
-  }
+  void _saveOrder() =>
+      _db.setMeta(AppDatabase.collectionsOrderKey, jsonEncode(_order));
 }
