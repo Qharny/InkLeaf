@@ -12,10 +12,20 @@ class BoardsRepository extends ChangeNotifier {
 
   static Future<void> init() async {
     final db = AppDatabase.instance;
-    instance = BoardsRepository._(db, {
-      for (final json in db.readAll(AppDatabase.boards))
-        json['id']! as String: Board.fromJson(json),
-    });
+    instance = BoardsRepository._(db, _load(db));
+  }
+
+  static Map<String, Board> _load(AppDatabase db) => {
+    for (final json in db.readAll(AppDatabase.boards))
+      json['id']! as String: Board.fromJson(json),
+  };
+
+  /// Re-reads every board, e.g. after restoring a backup.
+  void reload() {
+    _boards
+      ..clear()
+      ..addAll(_load(_db));
+    notifyListeners();
   }
 
   final AppDatabase _db;
