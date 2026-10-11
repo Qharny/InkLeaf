@@ -308,16 +308,18 @@ class FolderDrawerState extends State<FolderDrawer>
           offset: Offset(dx, 0),
           child: Transform.rotate(
             angle: angle,
-            child: _FolderTile(
-              collection: c,
-              index: i,
-              noteCount: widget.noteCount(c),
-              lifted: dragging,
-              onTap: () => widget.onOpen(c),
-              onMore: () => widget.onMore(c),
-              onDragStart: (d) => _startDrag(i, d),
-              onDragUpdate: _updateDrag,
-              onDragEnd: _endDrag,
+            child: RepaintBoundary(
+              child: _FolderTile(
+                collection: c,
+                index: i,
+                noteCount: widget.noteCount(c),
+                lifted: dragging,
+                onTap: () => widget.onOpen(c),
+                onMore: () => widget.onMore(c),
+                onDragStart: (d) => _startDrag(i, d),
+                onDragUpdate: _updateDrag,
+                onDragEnd: _endDrag,
+              ),
             ),
           ),
         ),

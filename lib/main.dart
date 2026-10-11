@@ -1,4 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app/app.dart';
@@ -13,6 +16,18 @@ import 'features/share/data/share_inbox.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // The fonts ship with the app (assets/google_fonts), so never fetch them.
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    for (final (family, file) in [
+      ('Kalam', 'Kalam-OFL.txt'),
+      ('Patrick Hand', 'PatrickHand-OFL.txt'),
+    ]) {
+      yield LicenseEntryWithLineBreaks([
+        family,
+      ], await rootBundle.loadString('assets/google_fonts/$file'));
+    }
+  });
   await AppPrefs.init();
   await MediaStore.init();
   await AppDatabase.open();

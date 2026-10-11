@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/widgets/doodles.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
+import 'bin_animation.dart';
 import 'note_card.dart';
 
 /// Trashed notes: restore them or delete them for good.
@@ -27,11 +28,24 @@ class TrashScreen extends StatelessWidget {
         ],
       ),
     );
-    if (ok ?? false) NotesRepository.instance.emptyTrash();
+    if (!(ok ?? false) || !context.mounted) return;
+    // One crumpled page from the middle of the list stands in for them all.
+    final list = globalRectOf(context);
+    if (list != null) {
+      throwInBin(
+        context,
+        from: Rect.fromCenter(center: list.center, width: 200, height: 150),
+        paper: noteFill(context, 0),
+      );
+    }
+    NotesRepository.instance.emptyTrash();
   }
 
+  /// [context] should be the note's card, which "Delete forever" throws
+  /// into the bin.
   void _showActions(BuildContext context, Note note) {
     final repo = NotesRepository.instance;
+    final card = globalRectOf(context);
     showModalBottomSheet<void>(
       context: context,
       builder: (sheetContext) => SafeArea(
@@ -50,6 +64,13 @@ class TrashScreen extends StatelessWidget {
               leading: const Icon(Icons.delete_forever_outlined),
               title: const Text('Delete forever'),
               onTap: () {
+                if (card != null) {
+                  throwInBin(
+                    context,
+                    from: card,
+                    paper: noteFill(context, note.color),
+                  );
+                }
                 repo.delete(note.id);
                 Navigator.of(sheetContext).pop();
               },
@@ -95,11 +116,13 @@ class TrashScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   itemCount: trashed.length,
                   separatorBuilder: (_, _) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => NoteCard(
-                    note: trashed[i],
-                    fixedHeight: false,
-                    previewLines: 2,
-                    onTap: () => _showActions(context, trashed[i]),
+                  itemBuilder: (_, i) => Builder(
+                    builder: (context) => NoteCard(
+                      note: trashed[i],
+                      fixedHeight: false,
+                      previewLines: 2,
+                      onTap: () => _showActions(context, trashed[i]),
+                    ),
                   ),
                 ),
         );

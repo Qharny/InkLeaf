@@ -613,19 +613,34 @@ class _CanvasEditorScreenState extends State<CanvasEditorScreen> {
                       ),
                     ),
                   ),
+                // Finished strokes are cached; only the one being drawn
+                // repaints as the pen moves.
                 Positioned.fill(
                   child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: StrokesPainter(
-                        strokes: _board.strokes,
-                        ink: scheme.onSurface,
-                        current: _drawing,
-                        currentColor: _penColor,
-                        currentWidth: _penWidth,
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: StrokesPainter(
+                          strokes: _board.strokes,
+                          ink: scheme.onSurface,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                if (_drawing != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: StrokesPainter(
+                          strokes: const <BoardStroke>[],
+                          ink: scheme.onSurface,
+                          current: _drawing,
+                          currentColor: _penColor,
+                          currentWidth: _penWidth,
+                        ),
+                      ),
+                    ),
+                  ),
                 if (drawing)
                   Positioned.fill(
                     child: GestureDetector(

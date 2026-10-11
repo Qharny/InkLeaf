@@ -77,6 +77,8 @@ flutter:
 
   assets:
     - assets/images/
+    # Bundled so text never waits for a download or swaps font mid-screen.
+    - assets/google_fonts/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

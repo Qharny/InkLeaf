@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -14,6 +16,7 @@ import '../../reminders/data/reminders.dart';
 import '../../reminders/presentation/reminder_picker.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
+import 'bin_animation.dart';
 import 'checklist_editor.dart';
 import 'note_card.dart';
 import 'scan_preview.dart';
@@ -34,8 +37,14 @@ class NoteEditorScreen extends StatefulWidget {
   State<NoteEditorScreen> createState() => _NoteEditorScreenState();
 }
 
-class _NoteEditorScreenState extends State<NoteEditorScreen> {
+class _NoteEditorScreenState extends State<NoteEditorScreen>
+    with WidgetsBindingObserver {
   final _repo = NotesRepository.instance;
+
+  /// Typing is saved once the writer pauses, rather than on every key: each
+  /// save redraws every list showing notes.
+  static const _typingPause = Duration(milliseconds: 350);
+  Timer? _saveTimer;
   late Note _note;
   late final TextEditingController _title;
   late final TextEditingController _body;
@@ -55,20 +64,51 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
     _note = existing ?? Note.create(color: _repo.notes.length % 5);
     _title = TextEditingController(text: _note.title);
     _body = TextEditingController(text: _note.body);
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Closed some way other than popping: save what's left once this frame
+    // is done (lists can't rebuild while the tree is being torn down).
+    if (_saveTimer?.isActive ?? false) {
+      _saveTimer!.cancel();
+      final pending = _note;
+      if (!pending.isEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _repo.save(pending),
+        );
+      }
+    }
     _title.dispose();
     _body.dispose();
     super.dispose();
   }
 
-  /// Applies [next]; [edited] bumps the "last edited" time.
-  void _update(Note next, {bool edited = false}) {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Never lose a pause's worth of typing to the app being closed.
+    if (state != AppLifecycleState.resumed) _save();
+  }
+
+  /// Applies [next]; [edited] bumps the "last edited" time. While [typing]
+  /// the save waits for a pause; anything else is saved straight away.
+  void _update(Note next, {bool edited = false, bool typing = false}) {
     setState(() {
       _note = edited ? next.copyWith(updatedAt: DateTime.now()) : next;
     });
+    _saveTimer?.cancel();
+    if (typing) {
+      _saveTimer = Timer(_typingPause, _save);
+    } else {
+      _save();
+    }
+  }
+
+  void _save() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
     // Empty notes are not saved; one emptied while editing is removed on
     // close instead, so it doesn't flicker off the desk mid-sentence.
     if (_note.isEmpty) return;
@@ -81,6 +121,7 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
   }
 
   void _onClosed() {
+    _save();
     if (!_note.isEmpty) {
       // The notification shows the note's title, which may have changed.
       Reminders.instance.refresh(_note.id);
@@ -222,9 +263,25 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
 
   void _trash() {
     final messenger = ScaffoldMessenger.of(context);
+    _save();
     if (_repo.byId(_note.id) != null && !_note.isEmpty) {
+      // The page itself folds up and goes in the bin.
+      final page = globalRectOf(context);
+      if (page != null) {
+        throwInBin(
+          context,
+          from: page.deflate(32),
+          paper: noteFill(context, _note.color),
+        );
+      }
       moveNoteToTrash(messenger, _note);
     }
+    context.pop();
+  }
+
+  /// Saves and closes, dismissing the keyboard.
+  void _done() {
+    FocusScope.of(context).unfocus();
     context.pop();
   }
 
@@ -259,24 +316,41 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               onPressed: () => _update(_note.copyWith(pinned: !_note.pinned)),
             ),
             IconButton(
-              tooltip: 'Color',
-              icon: const Icon(Icons.palette_outlined),
-              onPressed: _pickColor,
-            ),
-            IconButton(
               tooltip: 'Sketch',
               icon: const Icon(Icons.draw_outlined),
               onPressed: _editSketch,
             ),
-            IconButton(
-              tooltip: 'Collections',
-              icon: const Icon(Icons.collections_bookmark_outlined),
-              onPressed: () => showCollectionPicker(context, _note.id),
+            PopupMenuButton<VoidCallback>(
+              tooltip: 'More',
+              icon: const Icon(Icons.more_vert_rounded),
+              onSelected: (action) => action(),
+              itemBuilder: (_) => [
+                PopupMenuItem(
+                  value: _pickColor,
+                  child: const ListTile(
+                    leading: Icon(Icons.palette_outlined),
+                    title: Text('Color'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: () => showCollectionPicker(context, _note.id),
+                  child: const ListTile(
+                    leading: Icon(Icons.collections_bookmark_outlined),
+                    title: Text('Collections'),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: _trash,
+                  child: const ListTile(
+                    leading: Icon(Icons.delete_outline_rounded),
+                    title: Text('Move to trash'),
+                  ),
+                ),
+              ],
             ),
-            IconButton(
-              tooltip: 'Move to trash',
-              icon: const Icon(Icons.delete_outline_rounded),
-              onPressed: _trash,
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: TextButton(onPressed: _done, child: const Text('Done')),
             ),
           ],
         ),
@@ -291,7 +365,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               textInputAction: TextInputAction.next,
               maxLines: null,
               decoration: const InputDecoration.collapsed(hintText: 'Title'),
-              onChanged: (v) => _update(_note.copyWith(title: v), edited: true),
+              onChanged: (v) =>
+                  _update(_note.copyWith(title: v), edited: true, typing: true),
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -400,8 +475,11 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
             if (_note.checklist.isNotEmpty) ...[
               ChecklistEditor(
                 items: _note.checklist,
-                onChanged: (items) =>
-                    _update(_note.copyWith(checklist: items), edited: true),
+                onChanged: (items) => _update(
+                  _note.copyWith(checklist: items),
+                  edited: true,
+                  typing: true,
+                ),
               ),
               const SizedBox(height: 12),
             ],
@@ -415,7 +493,8 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
               decoration: const InputDecoration.collapsed(
                 hintText: 'Start writing…',
               ),
-              onChanged: (v) => _update(_note.copyWith(body: v), edited: true),
+              onChanged: (v) =>
+                  _update(_note.copyWith(body: v), edited: true, typing: true),
             ),
             const SizedBox(height: 24),
             Text(

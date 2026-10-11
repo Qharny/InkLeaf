@@ -83,6 +83,10 @@ class ScanPreview extends StatelessWidget {
                 child: Image.file(
                   _file,
                   fit: BoxFit.cover,
+                  cacheWidth:
+                      (MediaQuery.sizeOf(context).width *
+                              MediaQuery.devicePixelRatioOf(context))
+                          .round(),
                   excludeFromSemantics: true,
                   errorBuilder: (_, _, _) => const _Missing(),
                 ),

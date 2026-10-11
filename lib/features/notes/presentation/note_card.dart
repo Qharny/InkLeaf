@@ -65,147 +65,94 @@ class NoteCard extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
 
-    return Material(
-      color: noteFill(context, note.color),
-      shape: SketchBorder(
-        side: BorderSide(
-          color: scheme.outline,
-          width: SketchStyles.strokeWidth,
+    return RepaintBoundary(
+      child: Material(
+        color: noteFill(context, note.color),
+        shape: SketchBorder(
+          side: BorderSide(
+            color: scheme.outline,
+            width: SketchStyles.strokeWidth,
+          ),
+          seed: note.id.hashCode,
         ),
-        seed: note.id.hashCode,
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        onLongPress: onLongPress,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
-          child: Column(
-            mainAxisSize: fixedHeight ? MainAxisSize.max : MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Text(
-                      note.displayTitle,
-                      style: text.titleLarge?.copyWith(fontSize: 18),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (note.pinned)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 4, top: 2),
-                      child: Icon(
-                        Icons.push_pin_rounded,
-                        size: 18,
-                        semanticLabel: 'Pinned',
-                        color: scheme.onSurface,
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onLongPress,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 10, 10),
+            child: Column(
+              mainAxisSize: fixedHeight ? MainAxisSize.max : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.displayTitle,
+                        style: text.titleLarge?.copyWith(fontSize: 18),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                ],
-              ),
-              if (note.remindAt case final at? when at.isAfter(DateTime.now()))
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.notifications_active_outlined,
-                        size: 16,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          reminderLabel(context, at),
-                          style: text.labelMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          semanticsLabel:
-                              'Reminder ${reminderLabel(context, at)}',
+                    if (note.pinned)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, top: 2),
+                        child: Icon(
+                          Icons.push_pin_rounded,
+                          size: 18,
+                          semanticLabel: 'Pinned',
+                          color: scheme.onSurface,
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-              if (note.scanFile != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.document_scanner_outlined,
-                        size: 16,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'Scanned page',
-                          style: text.labelMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (note.audio case final audio?)
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.mic_none_rounded,
-                        size: 16,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          formatDuration(audio.duration),
-                          style: text.labelMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          semanticsLabel:
-                              'Recording, ${formatDuration(audio.duration)}',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              if (listed.isNotEmpty) ...[
-                for (final item in showItems)
+                if (note.remindAt case final at?
+                    when at.isAfter(DateTime.now()))
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Row(
                       children: [
                         Icon(
-                          item.done
-                              ? Icons.check_box_rounded
-                              : Icons.check_box_outline_blank_rounded,
+                          Icons.notifications_active_outlined,
                           size: 16,
-                          color: scheme.onSurfaceVariant,
+                          color: scheme.primary,
                         ),
                         const SizedBox(width: 4),
                         Flexible(
                           child: Text(
-                            item.text,
-                            style: text.bodyMedium?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                              decoration: item.done
-                                  ? TextDecoration.lineThrough
-                                  : null,
+                            reminderLabel(context, at),
+                            style: text.labelMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            semanticsLabel:
+                                'Reminder ${reminderLabel(context, at)}',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (note.scanFile != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.document_scanner_outlined,
+                          size: 16,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            'Scanned page',
+                            style: text.labelMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -214,51 +161,110 @@ class NoteCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(
-                    '${listed.where((i) => i.done).length}/${listed.length} done',
-                    style: text.labelMedium?.copyWith(
-                      color: scheme.primary,
-                      fontWeight: FontWeight.w700,
+                if (note.audio case final audio?)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.mic_none_rounded,
+                          size: 16,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            formatDuration(audio.duration),
+                            style: text.labelMedium?.copyWith(
+                              color: scheme.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            semanticsLabel:
+                                'Recording, ${formatDuration(audio.duration)}',
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-              if (preview.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                if (fixedHeight) Flexible(child: previewText) else previewText,
-              ] else if (showSketch) ...[
-                const SizedBox(height: 4),
-                if (fixedHeight)
-                  Expanded(child: sketch)
-                else
-                  SizedBox(height: 90, width: double.infinity, child: sketch),
-              ],
-              if (fixedHeight && !showSketch) const Spacer(),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
+                if (listed.isNotEmpty) ...[
+                  for (final item in showItems)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          Icon(
+                            item.done
+                                ? Icons.check_box_rounded
+                                : Icons.check_box_outline_blank_rounded,
+                            size: 16,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              item.text,
+                              style: text.bodyMedium?.copyWith(
+                                color: scheme.onSurfaceVariant,
+                                decoration: item.done
+                                    ? TextDecoration.lineThrough
+                                    : null,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(
-                      note.tags.map((t) => '#$t').join('  '),
+                      '${listed.where((i) => i.done).length}/${listed.length} done',
                       style: text.labelMedium?.copyWith(
                         color: scheme.primary,
                         fontWeight: FontWeight.w700,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Text(
-                    relativeTime(note.updatedAt),
-                    style: text.labelSmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
-              ),
-            ],
+                if (preview.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  if (fixedHeight)
+                    Flexible(child: previewText)
+                  else
+                    previewText,
+                ] else if (showSketch) ...[
+                  const SizedBox(height: 4),
+                  if (fixedHeight)
+                    Expanded(child: sketch)
+                  else
+                    SizedBox(height: 90, width: double.infinity, child: sketch),
+                ],
+                if (fixedHeight && !showSketch) const Spacer(),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        note.tags.map((t) => '#$t').join('  '),
+                        style: text.labelMedium?.copyWith(
+                          color: scheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      relativeTime(note.updatedAt),
+                      style: text.labelSmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
