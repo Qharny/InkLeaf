@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
@@ -10,6 +11,7 @@ import '../data/collections_repository.dart';
 import '../domain/collection.dart';
 import 'collection_widgets.dart';
 import 'collections_screen.dart';
+import 'folder_drawer.dart';
 
 /// One collection: its description and notes, with ways to add existing
 /// notes, write a new one into it, or take notes out.
@@ -110,7 +112,13 @@ class CollectionDetailScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(collection.name, overflow: TextOverflow.ellipsis),
+            title: Hero(
+              tag: folderTabHeroTag(collection.id),
+              child: Material(
+                type: MaterialType.transparency,
+                child: Text(collection.name, overflow: TextOverflow.ellipsis),
+              ),
+            ),
             actions: [
               IconButton(
                 tooltip: 'Add notes',
@@ -171,14 +179,17 @@ class CollectionDetailScreen extends StatelessWidget {
                   sliver: SliverList.separated(
                     itemCount: notes.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, i) => NoteCard(
-                      note: notes[i],
-                      fixedHeight: false,
-                      previewLines: 2,
-                      onTap: () =>
-                          context.push(AppRoutes.noteById(notes[i].id)),
-                      onLongPress: () =>
-                          _noteActions(context, collection, notes[i]),
+                    itemBuilder: (context, i) => _SlideOut(
+                      index: i,
+                      child: NoteCard(
+                        note: notes[i],
+                        fixedHeight: false,
+                        previewLines: 2,
+                        onTap: () =>
+                            context.push(AppRoutes.noteById(notes[i].id)),
+                        onLongPress: () =>
+                            _noteActions(context, collection, notes[i]),
+                      ),
                     ),
                   ),
                 ),
@@ -190,6 +201,8 @@ class CollectionDetailScreen extends StatelessWidget {
   }
 }
 
+/// The folder's front panel: it flies here from the drawer (as a hero) and
+/// carries the note count, description and a New note button.
 class _Header extends StatelessWidget {
   const _Header({
     required this.collection,
@@ -203,49 +216,91 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 8, 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 8,
-            height: collection.description.isEmpty ? 40 : 64,
-            margin: const EdgeInsets.only(top: 4, right: 12),
-            decoration: ShapeDecoration(
-              color: coverColor(collection.cover),
-              shape: SketchBorder(
-                side: BorderSide(color: scheme.outline, width: 1.2),
-                radius: 3,
-                seed: collection.id.hashCode,
-                passes: 1,
-              ),
-            ),
-          ),
-          Expanded(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Hero(
+        tag: folderHeroTag(collection.id),
+        child: FolderFront(
+          color: coverColor(collection.cover),
+          seed: collection.id.hashCode,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 8, bottom: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (collection.description.isNotEmpty)
-                  Text(collection.description, style: text.bodyLarge),
-                Text(
-                  noteCountLabel(count),
-                  style: text.labelLarge?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    FolderSticker(noteCountLabel(count)),
+                    const Spacer(),
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.ink,
+                        backgroundColor: AppColors.paperLight,
+                      ),
+                      onPressed: onWriteNote,
+                      icon: const Icon(Icons.edit_note_rounded),
+                      label: const Text('New note'),
+                    ),
+                  ],
                 ),
+                if (collection.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: AppColors.paperLight,
+                      shape: SketchBorder(
+                        radius: 5,
+                        seed: collection.id.hashCode + 2,
+                        passes: 1,
+                        side: const BorderSide(
+                          color: AppColors.ink,
+                          width: 1.1,
+                        ),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Text(
+                        collection.description,
+                        style: text.bodyLarge?.copyWith(color: AppColors.ink),
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
-          TextButton.icon(
-            onPressed: onWriteNote,
-            icon: const Icon(Icons.edit_note_rounded),
-            label: const Text('New note'),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+/// Notes slide out of the folder one after another when the page opens.
+class _SlideOut extends StatelessWidget {
+  const _SlideOut({required this.index, required this.child});
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: reduce
+          ? Duration.zero
+          : Duration(milliseconds: 280 + 60 * index.clamp(0, 8)),
+      curve: Curves.easeOutCubic,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, (1 - t) * -28),
+          child: child,
+        ),
+      ),
+      child: child,
     );
   }
 }
