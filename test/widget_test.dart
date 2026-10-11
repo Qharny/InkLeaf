@@ -447,14 +447,17 @@ void main() {
       await startApp(tester, onboardingDone: true, notes: seed);
       await tester.tap(find.text('Pasta'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byTooltip('Collections'));
+      // Collections lives in the editor's "More" menu.
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Collections'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('New collection'));
       await tester.pumpAndSettle();
       await tester.enterText(find.widgetWithText(TextField, 'Name'), 'Food');
       await tester.tap(find.text('Create'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Done'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Done'));
       await tester.pumpAndSettle();
       expect(
         CollectionsRepository.instance.containing('p').map((c) => c.name),

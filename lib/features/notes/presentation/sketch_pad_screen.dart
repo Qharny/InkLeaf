@@ -181,16 +181,35 @@ class _SketchPadScreenState extends State<SketchPadScreen> {
                   },
                   child: Semantics(
                     label: 'Drawing area',
-                    child: CustomPaint(
-                      painter: DotGridPainter(color: scheme.outlineVariant),
-                      foregroundPainter: StrokesPainter(
-                        strokes: _strokes,
-                        ink: scheme.onSurface,
-                        current: _drawing,
-                        currentColor: _color,
-                        currentWidth: _width,
-                      ),
-                      child: const SizedBox.expand(),
+                    // Paper and finished strokes are cached; only the stroke
+                    // being drawn repaints as the pen moves.
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              painter: DotGridPainter(
+                                color: scheme.outlineVariant,
+                              ),
+                              foregroundPainter: StrokesPainter(
+                                strokes: _strokes,
+                                ink: scheme.onSurface,
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: StrokesPainter(
+                              strokes: const <BoardStroke>[],
+                              ink: scheme.onSurface,
+                              current: _drawing,
+                              currentColor: _color,
+                              currentWidth: _width,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

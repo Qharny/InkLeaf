@@ -12,6 +12,7 @@ import '../../../core/widgets/app_logo.dart';
 import '../../../core/widgets/doodles.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
+import '../../notes/presentation/bin_animation.dart';
 import '../../notes/presentation/note_card.dart';
 
 /// "Your desk": greeting, search, tag filters, pinned notes and the rest of
@@ -153,11 +154,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, i) => SizedBox(
                     width: 168,
-                    child: NoteCard(
-                      note: pinned[i],
-                      previewLines: 3,
-                      onTap: () => _open(pinned[i]),
-                      onLongPress: () => showNoteActions(context, pinned[i]),
+                    // Builder: the long-press menu needs the card's own context,
+                    // to throw it in the bin from where it sits.
+                    child: Builder(
+                      builder: (card) => NoteCard(
+                        note: pinned[i],
+                        previewLines: 3,
+                        onTap: () => _open(pinned[i]),
+                        onLongPress: () => showNoteActions(card, pinned[i]),
+                      ),
                     ),
                   ),
                 ),
@@ -181,21 +186,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             crossAxisSpacing: 12,
                           ),
                       itemCount: others.length,
-                      itemBuilder: (context, i) => NoteCard(
-                        note: others[i],
-                        onTap: () => _open(others[i]),
-                        onLongPress: () => showNoteActions(context, others[i]),
+                      itemBuilder: (_, i) => Builder(
+                        builder: (card) => NoteCard(
+                          note: others[i],
+                          onTap: () => _open(others[i]),
+                          onLongPress: () => showNoteActions(card, others[i]),
+                        ),
                       ),
                     )
                   : SliverList.separated(
                       itemCount: others.length,
                       separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) => NoteCard(
-                        note: others[i],
-                        fixedHeight: false,
-                        previewLines: 2,
-                        onTap: () => _open(others[i]),
-                        onLongPress: () => showNoteActions(context, others[i]),
+                      itemBuilder: (_, i) => Builder(
+                        builder: (card) => NoteCard(
+                          note: others[i],
+                          fixedHeight: false,
+                          previewLines: 2,
+                          onTap: () => _open(others[i]),
+                          onLongPress: () => showNoteActions(card, others[i]),
+                        ),
                       ),
                     ),
             ),
@@ -255,10 +264,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-/// Long-press menu for a note: pin, recolor, move to trash.
+/// Long-press menu for a note: pin, recolor, move to trash. [context] should
+/// be the note's card, which "Move to trash" throws into the bin.
 Future<void> showNoteActions(BuildContext context, Note note) {
   final repo = NotesRepository.instance;
   final messenger = ScaffoldMessenger.of(context);
+  final card = globalRectOf(context);
   return showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
@@ -304,6 +315,13 @@ Future<void> showNoteActions(BuildContext context, Note note) {
               title: const Text('Move to trash'),
               onTap: () {
                 Navigator.of(sheetContext).pop();
+                if (card != null) {
+                  throwInBin(
+                    context,
+                    from: card,
+                    paper: noteFill(context, note.color),
+                  );
+                }
                 moveNoteToTrash(messenger, note);
               },
             ),
