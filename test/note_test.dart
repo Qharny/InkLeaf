@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:my_note/core/storage/audio_store.dart';
+import 'package:my_note/core/storage/media_store.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
@@ -64,8 +64,11 @@ void main() {
   test('deleting a note for good deletes its recording', () async {
     SharedPreferences.setMockInitialValues({});
     await NotesRepository.init();
-    AudioStore.directory = Directory.systemTemp.createTempSync('inkleaf_t');
-    final file = File(AudioStore.pathOf('voice_2.m4a'))..writeAsStringSync('x');
+    MediaStore.audio.directory = Directory.systemTemp.createTempSync(
+      'inkleaf_t',
+    );
+    final file = File(MediaStore.audio.pathOf('voice_2.m4a'))
+      ..writeAsStringSync('x');
     final repo = NotesRepository.instance
       ..save(
         Note(

@@ -70,5 +70,9 @@
 		<false/>
 		<key>NSMicrophoneUsageDescription</key>
 	<string>Inkleaf uses the microphone to record voice notes.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Inkleaf uses the camera to scan pages into notes.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Inkleaf can turn photos of pages into notes.</string>
 </dict>
 </plist>

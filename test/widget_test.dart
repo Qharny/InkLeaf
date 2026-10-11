@@ -6,13 +6,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:my_note/app/app.dart';
 import 'package:my_note/core/storage/app_prefs.dart';
-import 'package:my_note/core/storage/audio_store.dart';
+import 'package:my_note/core/storage/media_store.dart';
 import 'package:my_note/features/canvas/data/boards_repository.dart';
 import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
 import 'package:my_note/features/record/data/voice_recorder.dart';
+import 'package:my_note/features/scan/data/page_scanner.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> startApp(
@@ -25,7 +26,12 @@ Future<void> startApp(
     'notes': jsonEncode([for (final n in notes) n.toJson()]),
   });
   await AppPrefs.init();
-  AudioStore.directory = Directory.systemTemp.createTempSync('inkleaf_audio');
+  MediaStore.audio.directory = Directory.systemTemp.createTempSync(
+    'inkleaf_audio',
+  );
+  MediaStore.scans.directory = Directory.systemTemp.createTempSync(
+    'inkleaf_scans',
+  );
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
@@ -586,7 +592,7 @@ void main() {
       final note = NotesRepository.instance.notes.single;
       expect(note.audio, isNotNull);
       expect(
-        File(AudioStore.pathOf(note.audio!.fileName)).existsSync(),
+        File(MediaStore.audio.pathOf(note.audio!.fileName)).existsSync(),
         isTrue,
       );
       expect(find.byTooltip('Play recording'), findsOneWidget);
@@ -617,7 +623,7 @@ void main() {
       await tester.tap(find.text('Discard'));
       await tester.pumpAndSettle();
       expect(NotesRepository.instance.notes, isEmpty);
-      expect(AudioStore.directory.listSync(), isEmpty);
+      expect(MediaStore.audio.directory.listSync(), isEmpty);
     });
 
     testWidgets('removing the only recording empties and discards the note', (
@@ -639,6 +645,95 @@ void main() {
       expect(NotesRepository.instance.notes, isEmpty);
     });
   });
+
+  group('scan', () {
+    setUp(() => PageScanner.create = _FakeScanner.new);
+
+    Future<void> openScan(WidgetTester tester) async {
+      await tester.tap(find.byTooltip('Create'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Scan document'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('photo to text to note, keeping the photo', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openScan(tester);
+      expect(find.text('Capture anything'), findsOneWidget);
+
+      await tester.tap(find.text('Take a photo'));
+      await tester.pumpAndSettle();
+      expect(find.text('Text found'), findsOneWidget);
+      final field = find.widgetWithText(TextField, 'Milk\nEggs');
+      expect(field, findsOneWidget);
+      await tester.enterText(field, 'Milk\nEggs\nBread');
+
+      await tester.tap(find.text('Save as note'));
+      await tester.pumpAndSettle();
+      final note = NotesRepository.instance.notes.single;
+      expect(note.body, 'Milk\nEggs\nBread');
+      expect(
+        File(MediaStore.scans.pathOf(note.scanFile!)).existsSync(),
+        isTrue,
+      );
+      expect(find.byTooltip('Remove photo'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(find.text('Milk'), findsOneWidget);
+      expect(find.text('Scanned page'), findsOneWidget);
+    });
+
+    testWidgets('backing out of the picker changes nothing', (tester) async {
+      PageScanner.create = () => _FakeScanner(picks: false);
+      await startApp(tester, onboardingDone: true);
+      await openScan(tester);
+      await tester.tap(find.text('Choose from gallery'));
+      await tester.pumpAndSettle();
+      expect(find.text('Capture anything'), findsOneWidget);
+    });
+
+    testWidgets('leaving without saving deletes the copied photo', (
+      tester,
+    ) async {
+      await startApp(tester, onboardingDone: true);
+      await openScan(tester);
+      await tester.tap(find.text('Take a photo'));
+      await tester.pumpAndSettle();
+      expect(MediaStore.scans.directory.listSync(), hasLength(1));
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+      for (var i = 0; i < 20; i++) {
+        if (MediaStore.scans.directory.listSync().isEmpty) break;
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 10)),
+        );
+      }
+      expect(MediaStore.scans.directory.listSync(), isEmpty);
+      expect(NotesRepository.instance.notes, isEmpty);
+    });
+  });
+}
+
+/// Hands back a placeholder photo and canned text.
+class _FakeScanner implements PageScanner {
+  _FakeScanner({this.picks = true});
+
+  final bool picks;
+
+  @override
+  Future<String?> pickImage({required bool camera}) async {
+    if (!picks) return null;
+    final dir = Directory.systemTemp.createTempSync('inkleaf_pick');
+    return (File('${dir.path}/page.jpg')..writeAsStringSync('jpg')).path;
+  }
+
+  @override
+  Future<String> recognize(String path) async => 'Milk\nEggs';
+
+  @override
+  Future<void> dispose() async {}
 }
 
 /// Writes a placeholder file instead of using the microphone.

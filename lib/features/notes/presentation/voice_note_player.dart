@@ -5,7 +5,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/sketch_styles.dart';
-import '../../../core/storage/audio_store.dart';
+import '../../../core/storage/media_store.dart';
 import '../../../core/utils/relative_time.dart';
 import '../domain/note.dart';
 
@@ -80,7 +80,7 @@ class _VoiceNotePlayerState extends State<VoiceNotePlayer> {
       setState(() => _playing = false);
       return;
     }
-    final path = AudioStore.pathOf(widget.audio.fileName);
+    final path = MediaStore.audio.pathOf(widget.audio.fileName);
     if (!File(path).existsSync()) {
       setState(() => _missing = true);
       return;

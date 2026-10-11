@@ -5,7 +5,7 @@ import '../../../app/router.dart';
 import '../../../app/theme/sketch_styles.dart';
 import '../../canvas/domain/board.dart';
 import '../../canvas/presentation/board_painters.dart';
-import '../../../core/storage/audio_store.dart';
+import '../../../core/storage/media_store.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../collections/presentation/collection_widgets.dart';
@@ -13,6 +13,7 @@ import '../../home/presentation/home_screen.dart';
 import '../data/notes_repository.dart';
 import '../domain/note.dart';
 import 'note_card.dart';
+import 'scan_preview.dart';
 import 'voice_note_player.dart';
 
 /// Writes a new note, or edits the note with [noteId].
@@ -137,8 +138,31 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
       ),
     );
     if (!(ok ?? false) || !mounted) return;
-    AudioStore.delete(audio.fileName);
+    MediaStore.audio.delete(audio.fileName);
     _update(_note.copyWith(audio: () => null), edited: true);
+  }
+
+  Future<void> _removeScan(String fileName) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove the scanned photo?'),
+        content: const Text('The text stays; the photo is deleted for good.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+    MediaStore.scans.delete(fileName);
+    _update(_note.copyWith(scanFile: () => null), edited: true);
   }
 
   Future<void> _editSketch() async {
@@ -265,6 +289,15 @@ class _NoteEditorScreenState extends State<NoteEditorScreen> {
                 ),
               ],
             ),
+            if (_note.scanFile case final scan?)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: ScanPreview(
+                  key: ValueKey(scan),
+                  fileName: scan,
+                  onRemove: () => _removeScan(scan),
+                ),
+              ),
             if (_note.audio case final audio?)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
