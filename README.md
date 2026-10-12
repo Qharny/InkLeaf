@@ -130,6 +130,13 @@ flutter run --release   # debug builds are much slower than the real app
   build, set `platform :ios, '15.5'` in the generated `ios/Podfile`. Sharing
   into Inkleaf needs a Share Extension target, which isn't set up yet.
 
+- **Releasing:** store policy notes, signing and the answers for Play
+  Console and App Store Connect are in
+  [docs/store-release.md](docs/store-release.md). The privacy policy is
+  [PRIVACY.md](PRIVACY.md), also shown in the app under Settings. The
+  website with the policy, terms and support page is at
+  <https://qharny.github.io/InkLeaf/> (source in `site/`).
+
 ### Checks
 
 ```bash

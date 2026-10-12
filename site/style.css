@@ -1,0 +1,164 @@
+/* Inkleaf's paper, ink and sage, as in lib/app/theme/app_colors.dart. */
+@font-face {
+  font-family: "Kalam";
+  src: url("fonts/Kalam-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Patrick Hand";
+  src: url("fonts/PatrickHand-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+:root {
+  --paper: #f6f0e3;
+  --paper-light: #fbf7ee;
+  --paper-dark: #ece3cf;
+  --ink: #292b28;
+  --ink-soft: #5a5c57;
+  --sage-deep: #4f6a4e;
+  --marker: rgba(242, 201, 76, 0.6);
+  --rule: rgba(220, 210, 188, 0.55);
+  --card: #fbf7ee;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1f201e;
+    --paper-light: #2a2c29;
+    --paper-dark: #353733;
+    --ink: #ede6d6;
+    --ink-soft: #b9b3a5;
+    --sage-deep: #9db89b;
+    --marker: rgba(242, 201, 76, 0.32);
+    --rule: rgba(69, 71, 63, 0.35);
+    --card: #2a2c29;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background-color: var(--paper);
+  /* Faint ruled lines, like the app's notebook paper. */
+  background-image: repeating-linear-gradient(
+    to bottom, transparent 0 31px, var(--rule) 31px 32px);
+  color: var(--ink);
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", system-ui, sans-serif;
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+a { color: var(--sage-deep); text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+a:focus-visible { outline: 2px dashed var(--sage-deep); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { max-width: 46rem; margin: 0 auto; padding: 0 16px; }
+
+header.site {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding-top: 20px;
+  padding-bottom: 8px;
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: "Kalam", cursive;
+  font-weight: 700;
+  font-size: 1.6rem;
+}
+.brand img { width: 40px; height: 40px; border-radius: 10px; }
+nav.site { display: flex; flex-wrap: wrap; gap: 4px 18px; }
+nav.site a { color: var(--ink-soft); text-decoration: none; }
+nav.site a:hover, nav.site a[aria-current="page"] { color: var(--ink); text-decoration: underline; }
+
+h1, h2, h3 {
+  font-family: "Kalam", cursive;
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+h1 { font-size: clamp(2.2rem, 7vw, 3.4rem); margin: 0.6em 0 0.2em; }
+h2 { font-size: 1.6rem; margin: 1.8em 0 0.3em; }
+h3 { font-size: 1.3rem; margin: 1.4em 0 0.2em; }
+
+/* The marker swipe behind headings. */
+.mark {
+  background: linear-gradient(transparent 55%, var(--marker) 55% 92%, transparent 92%);
+  padding: 0 0.15em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.lede { font-size: 1.45rem; color: var(--ink-soft); margin-top: 0; }
+.updated { color: var(--ink-soft); margin-top: 0; }
+
+main p, main li { max-width: 40rem; }
+main ul { padding-left: 1.2em; }
+main li { margin: 0.3em 0; }
+main li::marker { color: var(--sage-deep); }
+
+.card {
+  background: var(--card);
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 4px 0 var(--ink);
+  padding: 4px 20px 12px;
+  margin: 24px 0;
+}
+
+.button {
+  display: inline-block;
+  padding: 6px 18px;
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  box-shadow: 2px 3px 0 var(--ink);
+  background: var(--paper-light);
+  color: var(--ink);
+  text-decoration: none;
+}
+.button:hover { transform: translate(-1px, -1px); box-shadow: 3px 4px 0 var(--ink); }
+@media (prefers-reduced-motion: reduce) { .button:hover { transform: none; } }
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 28px 0;
+}
+.shots figure { margin: 0; text-align: center; color: var(--ink-soft); font-size: 1.05rem; }
+.shots img {
+  width: 100%;
+  height: auto;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 3px 4px 0 var(--ink);
+  background: var(--paper-light);
+}
+
+.features { padding-left: 0; list-style: none; }
+.features li { margin: 0.6em 0; }
+.features strong { font-family: "Kalam", cursive; }
+
+footer.site {
+  margin-top: 56px;
+  padding: 20px 16px 40px;
+  border-top: 2px dashed var(--rule);
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  text-align: center;
+}
+footer.site a { color: var(--ink-soft); }
