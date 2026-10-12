@@ -16,6 +16,7 @@ import '../features/onboarding/presentation/onboarding_screen.dart';
 import '../features/record/presentation/record_screen.dart';
 import '../features/scan/presentation/scan_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/settings/presentation/privacy_policy_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/splash/presentation/splash_screen.dart';
 import 'app_shell.dart';
@@ -39,6 +40,7 @@ abstract final class AppRoutes {
   static const scan = '/scan';
   static const settings = '/settings';
   static const trash = '/trash';
+  static const privacy = '/privacy';
 
   static String noteById(String id) => '/notes/$id';
 
@@ -186,6 +188,11 @@ GoRouter createRouter() {
         path: AppRoutes.trash,
         parentNavigatorKey: rootKey,
         builder: (_, _) => const TrashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.privacy,
+        parentNavigatorKey: rootKey,
+        builder: (_, _) => const PrivacyPolicyScreen(),
       ),
     ],
     errorBuilder: (_, state) => PlaceholderScreen(

@@ -174,6 +174,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: AppLock.instance.enabled,
             onChanged: _setLock,
           ),
+          ListTile(
+            leading: const Icon(Icons.privacy_tip_outlined),
+            title: const Text('Privacy policy'),
+            subtitle: const Text('What Inkleaf keeps, and what it never sends'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push(AppRoutes.privacy),
+          ),
           const _Section('Search'),
           ListTile(
             leading: const Icon(Icons.history_rounded),
