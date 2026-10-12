@@ -1,4 +1,4 @@
-package com.example.my_note
+package kabuteyy.inkLeaf
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 

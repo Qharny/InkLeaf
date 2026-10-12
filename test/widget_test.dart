@@ -607,6 +607,16 @@ void main() {
       expect(NotesRepository.instance.byId('a')?.title, 'Backed up');
     });
 
+    testWidgets('opens the privacy policy', (tester) async {
+      await startApp(tester, onboardingDone: true);
+      await openSettings(tester);
+      await tester.scrollUntilVisible(find.text('Privacy policy'), 200);
+      await tester.tap(find.text('Privacy policy'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Last updated'), findsOneWidget);
+      expect(find.text('What Inkleaf keeps, and where'), findsOneWidget);
+    });
+
     testWidgets('replay the intro', (tester) async {
       await startApp(tester, onboardingDone: true);
       await openSettings(tester);
