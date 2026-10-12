@@ -17,6 +17,7 @@ class AppPrefs {
   static const _recentSearchesKey = 'recent_searches';
   static const _themeModeKey = 'theme_mode';
   static const _appLockKey = 'app_lock';
+  static const _starterAddedKey = 'starter_added';
   static const _maxRecentSearches = 8;
 
   final SharedPreferences _prefs;
@@ -27,6 +28,12 @@ class AppPrefs {
 
   /// Shows the intro again on the next launch.
   Future<void> resetOnboarding() => _prefs.setBool(_onboardingDoneKey, false);
+
+  /// Whether the starter notebook has been offered, so it's added at most
+  /// once, even after every note is deleted.
+  bool get starterAdded => _prefs.getBool(_starterAddedKey) ?? false;
+
+  Future<void> markStarterAdded() => _prefs.setBool(_starterAddedKey, true);
 
   /// Whether Inkleaf asks for the phone's fingerprint, face or PIN.
   bool get appLock => _prefs.getBool(_appLockKey) ?? false;

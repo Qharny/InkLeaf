@@ -23,6 +23,11 @@
 
 ## Features
 
+**Getting started**
+- **Starter notebook**: a fresh install opens with a few notes that show the
+  app around ("Start here", a checklist to tick, a search to try) and a small
+  canvas. They're ordinary notes, added once, and only to an empty notebook.
+
 **Write and capture**
 - **Notes** with titles, tags, colors and pinning. Changes save as you type.
 - **Formatting**: headings, **bold**, *italic*, ~~strike~~ and lists, drawn

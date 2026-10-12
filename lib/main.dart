@@ -12,6 +12,7 @@ import 'features/canvas/data/boards_repository.dart';
 import 'features/collections/data/collections_repository.dart';
 import 'features/lock/data/app_lock.dart';
 import 'features/notes/data/notes_repository.dart';
+import 'features/notes/data/starter_notebook.dart';
 import 'features/reminders/data/reminders.dart';
 import 'features/share/data/share_inbox.dart';
 import 'features/widget/home_screen_widget.dart';
@@ -40,6 +41,7 @@ Future<void> main() async {
   await NotesRepository.init();
   await BoardsRepository.init();
   await CollectionsRepository.init();
+  StarterNotebook.addIfNew();
   await ShareInbox.instance.start();
   await Reminders.instance.init(PluginReminderScheduler());
   await HomeScreenWidget.instance.start();
