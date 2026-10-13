@@ -87,7 +87,10 @@ later release couldn't install over a debug-signed APK.
 **To release:**
 
 1. Set `version:` in `pubspec.yaml`. Raise the number after `+` every time.
-2. Merge to `main`, then tag that commit:
+2. Write `release-notes/v<version>.md`: what's new and the known issues.
+   It becomes the text of the release, followed by install instructions.
+   The workflow stops if the file is missing.
+3. Merge to `main`, then tag that commit:
 
    ```bash
    git tag v1.0.0 && git push origin v1.0.0
@@ -99,8 +102,8 @@ The workflow runs the tests and builds:
 - one APK each for arm64-v8a, armeabi-v7a and x86_64
 - `SHA256SUMS.txt`
 
-It then publishes them under Releases, with notes generated from the merged
-PRs. A tag with a suffix such as `v1.1.0-beta.1` becomes a pre-release. A
+It then publishes them under Releases, with your release notes. A
+tag with a suffix such as `v1.1.0-beta.1` becomes a pre-release. A
 tag that doesn't match the pubspec version fails before anything is built.
 
 To check a build without publishing, run the workflow by hand from the

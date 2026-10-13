@@ -43,6 +43,10 @@ jobs:
               exit 1
             fi
             echo "label=$tag" >> "$GITHUB_OUTPUT"
+            if [ ! -s "release-notes/$GITHUB_REF_NAME.md" ]; then
+              echo "::error::Write release-notes/$GITHUB_REF_NAME.md first. It becomes the text of the release."
+              exit 1
+            fi
           else
             echo "label=$name-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           fi
@@ -111,28 +115,39 @@ jobs:
           path: dist/
           retention-days: 14
 
+      # The release text: release-notes/<tag>.md, then how to install.
+      - name: Write the release text
+        if: github.ref_type == 'tag'
+        env:
+          LABEL: ${{ steps.version.outputs.label }}
+        run: |
+          {
+            cat "release-notes/$GITHUB_REF_NAME.md"
+            cat <<EOF
+
+          ## Download and install
+
+          **inkleaf-$LABEL.apk** works on any Android phone. Download it, open
+          it, and allow your browser or file manager to install apps when
+          Android asks. Updates install over the top and keep your notes.
+
+          The smaller files are each built for one kind of processor:
+          \`arm64-v8a\` for most phones from 2017 onwards, \`armeabi-v7a\` for
+          older ones and \`x86_64\` for emulators. If you're not sure, use the
+          main file.
+
+          \`SHA256SUMS.txt\` lets you check that a download arrived intact.
+          EOF
+          } > "$RUNNER_TEMP/release.md"
+
       - name: Publish the GitHub Release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           name: Inkleaf ${{ github.ref_name }}
           prerelease: ${{ contains(github.ref_name, '-') }}
-          generate_release_notes: true
+          body_path: ${{ runner.temp }}/release.md
           files: dist/*
-          body: |
-            ## Download
-
-            Most phones: **`inkleaf-${{ steps.version.outputs.label }}.apk`** works on any Android phone.
-
-            The smaller files are built for one kind of processor each. Pick
-            `arm64-v8a` for phones from about 2017 onwards, and `armeabi-v7a`
-            for older ones. If you're not sure, use the main file.
-
-            To install, open the APK on your phone and allow your browser or
-            file manager to install apps when Android asks. Updates install
-            over the top and keep your notes.
-
-            `SHA256SUMS.txt` lets you check that a download wasn't corrupted.
 
       - name: Remove the signing key
         if: always()
