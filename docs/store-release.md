@@ -66,6 +66,52 @@ and the in-app screen. Change all three together.
 Without `key.properties`, release builds fall back to the debug key, and Play
 rejects them.
 
+## GitHub releases
+
+`.github/workflows/release.yml` builds signed APKs and publishes them as a
+GitHub Release, so people can download Inkleaf without Play.
+
+**One-time setup:** add the upload key from the steps above as four
+repository secrets:
+
+```bash
+base64 -w0 ~/inkleaf-upload.jks | gh secret set ANDROID_KEYSTORE_BASE64
+gh secret set ANDROID_KEYSTORE_PASSWORD   # prompts for the value
+gh secret set ANDROID_KEY_ALIAS           # upload
+gh secret set ANDROID_KEY_PASSWORD
+```
+
+Without these, the workflow stops rather than publish debug-signed APKs. A
+later release couldn't install over a debug-signed APK.
+
+**To release:**
+
+1. Set `version:` in `pubspec.yaml`. Raise the number after `+` every time.
+2. Merge to `main`, then tag that commit:
+
+   ```bash
+   git tag v1.0.0 && git push origin v1.0.0
+   ```
+
+The workflow runs the tests and builds:
+
+- a universal APK
+- one APK each for arm64-v8a, armeabi-v7a and x86_64
+- `SHA256SUMS.txt`
+
+It then publishes them under Releases, with notes generated from the merged
+PRs. A tag with a suffix such as `v1.1.0-beta.1` becomes a pre-release. A
+tag that doesn't match the pubspec version fails before anything is built.
+
+To check a build without publishing, run the workflow by hand from the
+Actions tab. The APKs are attached to the run.
+
+**Play and GitHub installs don't mix.** With Play App Signing, Google
+re-signs the Play version with its own key. The GitHub APKs are signed with
+your upload key. Android won't update one with the other, so someone who
+switches has to uninstall first and loses their notes unless they export a
+backup. Say this on the release page or the website once Inkleaf is on Play.
+
 ## Play Console answers
 
 **Data safety.** The answers come from Google ML Kit, which sends Google
