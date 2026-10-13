@@ -3,8 +3,8 @@
 What the code already does to meet store policy, and what still has to be
 filled in by hand in Play Console and App Store Connect.
 
-App ID on both stores: `kabuteyy.inkLeaf`. It can't change after the first
-upload.
+App ID on both stores: `kabuteyy.InkLeaf`, with a capital I and L. IDs are
+case-sensitive, and the ID can't change after the first upload.
 
 ## Already handled in the code
 

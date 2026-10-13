@@ -20,8 +20,9 @@ class HomeScreenWidget {
 
   static final instance = HomeScreenWidget._();
 
-  /// The Kotlin class that draws the widget.
-  static const _provider = 'InkleafWidgetProvider';
+  /// The Kotlin class that draws the widget. Fully qualified, because the
+  /// app ID (kabuteyy.InkLeaf) differs in case from the Kotlin package.
+  static const _provider = 'kabuteyy.inkLeaf.InkleafWidgetProvider';
   static const _maxPinned = 3;
 
   /// What the widget currently shows, to skip needless updates.
@@ -59,7 +60,7 @@ class HomeScreenWidget {
         note?.displayTitle,
       );
     }
-    await HomeWidget.updateWidget(androidName: _provider);
+    await HomeWidget.updateWidget(qualifiedAndroidName: _provider);
   }
 
   /// Handles a tap on the widget.
