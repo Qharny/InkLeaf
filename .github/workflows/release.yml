@@ -1,0 +1,139 @@
+name: Release
+
+# Push a version tag to build signed APKs and publish them as a GitHub
+# Release that anyone can download:
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# The tag must match `version:` in pubspec.yaml (1.0.0+1 -> v1.0.0). A tag
+# with a suffix (v1.1.0-beta.1) is published as a pre-release.
+#
+# Running it by hand from the Actions tab builds the same APKs without
+# publishing anything; download them from the run's artifacts.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    name: Build and publish Android APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the app version
+        id: version
+        run: |
+          full=$(sed -n 's/^version: *//p' pubspec.yaml)
+          name=${full%%+*}
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag=${GITHUB_REF_NAME#v}
+            if [ "${tag%%-*}" != "$name" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME doesn't match version $full in pubspec.yaml. Bump the version or retag."
+              exit 1
+            fi
+            echo "label=$tag" >> "$GITHUB_OUTPUT"
+          else
+            echo "label=$name-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.7
+          channel: stable
+          cache: true
+
+      - name: Install packages
+        run: flutter pub get
+
+      - name: Test
+        run: flutter test
+
+      # Builds signed with the debug key can't be updated by later releases,
+      # so refuse to publish without the real upload key.
+      - name: Set up release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ] || [ -z "$STORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::error::Missing signing secrets. See docs/store-release.md, 'GitHub releases'."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          cat > android/key.properties <<EOF
+          storeFile=$RUNNER_TEMP/upload.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+
+      - name: Build APKs
+        run: |
+          flutter build apk --release
+          flutter build apk --release --split-per-abi
+
+      - name: Collect the downloads
+        env:
+          LABEL: ${{ steps.version.outputs.label }}
+        run: |
+          out=dist
+          mkdir -p "$out"
+          apks=build/app/outputs/flutter-apk
+          cp "$apks/app-release.apk" "$out/inkleaf-$LABEL.apk"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cp "$apks/app-$abi-release.apk" "$out/inkleaf-$LABEL-$abi.apk"
+          done
+          (cd "$out" && sha256sum *.apk > SHA256SUMS.txt)
+          ls -l "$out"
+
+      - name: Keep the APKs with the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: inkleaf-${{ steps.version.outputs.label }}
+          path: dist/
+          retention-days: 14
+
+      - name: Publish the GitHub Release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Inkleaf ${{ github.ref_name }}
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+          files: dist/*
+          body: |
+            ## Download
+
+            Most phones: **`inkleaf-${{ steps.version.outputs.label }}.apk`** works on any Android phone.
+
+            The smaller files are built for one kind of processor each. Pick
+            `arm64-v8a` for phones from about 2017 onwards, and `armeabi-v7a`
+            for older ones. If you're not sure, use the main file.
+
+            To install, open the APK on your phone and allow your browser or
+            file manager to install apps when Android asks. Updates install
+            over the top and keep your notes.
+
+            `SHA256SUMS.txt` lets you check that a download wasn't corrupted.
+
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks" android/key.properties
