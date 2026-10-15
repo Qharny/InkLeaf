@@ -11,8 +11,10 @@ import '../../../core/utils/relative_time.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
 import '../data/voice_recorder.dart';
+import '../domain/voice_transcript.dart';
+import '../data/voice_transcriber.dart';
 
-enum _Phase { idle, recording, paused, denied }
+enum _Phase { idle, recording, paused, transcribing, denied }
 
 /// Records a voice note: start, pause and resume, then stop to save it as a
 /// new note (opened next so it can be titled), or discard it. Leaving while
@@ -26,15 +28,22 @@ class RecordScreen extends StatefulWidget {
 
 class _RecordScreenState extends State<RecordScreen> {
   final _recorder = VoiceRecorder.create();
+  final _transcriber = VoiceTranscriber.create();
   final _clock = Stopwatch();
   final _levels = <double>[];
+  final _transcriptFinal = <String>[];
+  String _transcriptPartial = '';
+  bool _transcriptUnavailable = false;
   _Phase _phase = _Phase.idle;
   String? _fileName;
   Timer? _ticker;
   StreamSubscription<double>? _levelSub;
   bool _closing = false;
 
-  bool get _active => _phase == _Phase.recording || _phase == _Phase.paused;
+  bool get _active =>
+      _phase == _Phase.recording ||
+      _phase == _Phase.paused ||
+      _phase == _Phase.transcribing;
 
   @override
   void dispose() {
@@ -42,7 +51,9 @@ class _RecordScreenState extends State<RecordScreen> {
     // Leaving through a path that didn't save (e.g. the app closing) drops
     // the half-made file rather than orphaning it.
     if (_active && !_closing) _recorder.cancel();
+    _transcriber.cancel();
     _recorder.dispose();
+    _transcriber.dispose();
     super.dispose();
   }
 
@@ -61,6 +72,10 @@ class _RecordScreenState extends State<RecordScreen> {
     }
     final name = MediaStore.audio.newFileName();
     await _recorder.start(MediaStore.audio.pathOf(name));
+    _transcriptFinal.clear();
+    _transcriptPartial = '';
+    _transcriptUnavailable = false;
+    await _startTranscribing();
     if (!mounted) return;
     _fileName = name;
     _clock
@@ -79,13 +94,48 @@ class _RecordScreenState extends State<RecordScreen> {
     setState(() => _phase = _Phase.recording);
   }
 
+  Future<void> _startTranscribing() async {
+    final started = await _transcriber.start((
+      String words, {
+      required bool isFinal,
+    }) {
+      if (!mounted) return;
+      setState(() {
+        if (words.isEmpty) return;
+        if (isFinal) {
+          if (_transcriptFinal.isEmpty || _transcriptFinal.last != words) {
+            _transcriptFinal.add(words);
+          }
+          _transcriptPartial = '';
+        } else {
+          _transcriptPartial = words;
+        }
+      });
+    });
+    if (!started && mounted) {
+      setState(() => _transcriptUnavailable = true);
+    }
+  }
+
+  void _sealTranscriptPartial() {
+    final partial = _transcriptPartial.trim();
+    if (partial.isEmpty) return;
+    if (_transcriptFinal.isEmpty || _transcriptFinal.last != partial) {
+      _transcriptFinal.add(partial);
+    }
+    _transcriptPartial = '';
+  }
+
   Future<void> _togglePause() async {
     if (_phase == _Phase.recording) {
       await _recorder.pause();
+      await _transcriber.stop();
+      _sealTranscriptPartial();
       _clock.stop();
       setState(() => _phase = _Phase.paused);
     } else {
       await _recorder.resume();
+      await _startTranscribing();
       _clock.start();
       setState(() => _phase = _Phase.recording);
     }
@@ -111,6 +161,7 @@ class _RecordScreenState extends State<RecordScreen> {
     if (!(ok ?? false) || !mounted) return;
     _closing = true;
     _stopTicking();
+    await _transcriber.cancel();
     await _recorder.cancel();
     if (mounted) context.pop();
   }
@@ -119,16 +170,24 @@ class _RecordScreenState extends State<RecordScreen> {
     if (_closing) return;
     _closing = true;
     _stopTicking();
+    setState(() => _phase = _Phase.transcribing);
     final path = await _recorder.stop();
+    await _transcriber.stop();
+    _sealTranscriptPartial();
     final name = _fileName;
     if (!mounted) return;
     if (path == null || name == null) {
       context.pop();
       return;
     }
+    final transcript = normalizeTranscript([
+      ..._transcriptFinal,
+      _transcriptPartial,
+    ]);
     final repo = NotesRepository.instance;
     final note = Note.create(color: repo.notes.length % AppColors.notes.length)
         .copyWith(
+          body: voiceTranscriptBody(transcript),
           audio: () =>
               NoteAudio(fileName: name, durationMs: _clock.elapsedMilliseconds),
         );
@@ -144,6 +203,7 @@ class _RecordScreenState extends State<RecordScreen> {
       _Phase.idle => 'Tap to start recording',
       _Phase.recording => 'Recording…',
       _Phase.paused => 'Paused',
+      _Phase.transcribing => 'Transcribing…',
       _Phase.denied =>
         'Inkleaf needs microphone access to record. Allow it in your '
             "phone's settings, then try again.",
@@ -181,6 +241,19 @@ class _RecordScreenState extends State<RecordScreen> {
                     textAlign: TextAlign.center,
                   ),
                 ),
+                if (_phase == _Phase.transcribing) ...[
+                  const SizedBox(height: 16),
+                  const LinearProgressIndicator(),
+                ] else if (_active && _transcriptUnavailable) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    "On-device speech recognition isn't available.",
+                    style: text.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
                 const SizedBox(height: 32),
                 SizedBox(
                   height: 80,
@@ -208,6 +281,7 @@ class _RecordScreenState extends State<RecordScreen> {
   }
 
   Widget _buildControls(BuildContext context) {
+    if (_phase == _Phase.transcribing) return const SizedBox(height: 88);
     if (!_active) {
       return _BigButton(
         tooltip: _phase == _Phase.denied ? 'Try again' : 'Start recording',

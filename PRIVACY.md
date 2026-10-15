@@ -24,6 +24,8 @@ Inkleaf asks for each permission only when you first use the feature that
 needs it, and you can say no and keep using the rest of the app.
 
 - **Microphone:** used only while you record a voice note.
+- **Speech recognition:** used only to turn a voice note into editable text on
+  your phone.
 - **Camera and photos:** used only when you scan a page or pick a photo to
   scan.
 - **Notifications:** used to show the reminders you set.
@@ -44,6 +46,12 @@ ML Kit features were used, and error and performance figures. It doesn't
 include your notes, photos, recordings or any text. See
 [Google's ML Kit data disclosure](https://developers.google.com/ml-kit/android/data-disclosure)
 and [Google's privacy policy](https://policies.google.com/privacy).
+
+## Voice-note transcription
+
+Inkleaf can transcribe voice notes into text using your phone's on-device
+speech recognition. Your recordings and transcript text are not uploaded by
+Inkleaf.
 
 ## Sharing and backups
 

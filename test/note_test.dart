@@ -45,9 +45,10 @@ void main() {
     expect(Note.fromJson(old).sketch, isEmpty);
   });
 
-  test('audio survives a JSON round trip and names the note', () {
+  test('audio and transcript survive a JSON round trip and name the note', () {
     final note = Note(
       id: 'v',
+      body: '## Transcript\nPick up milk on the way home.',
       audio: const NoteAudio(fileName: 'voice_1.m4a', durationMs: 4200),
       createdAt: t,
       updatedAt: t,
@@ -59,6 +60,7 @@ void main() {
     );
     expect(back.audio!.fileName, 'voice_1.m4a');
     expect(back.audio!.duration, const Duration(milliseconds: 4200));
+    expect(back.body, note.body);
   });
 
   test('deleting a note for good deletes its recording', () async {

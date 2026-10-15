@@ -76,4 +76,17 @@ void main() {
     final hit = searchNotes([shopping], 'oat').single;
     expect(hit.snippet, contains('Oat milk'));
   });
+
+  test('finds words in voice-note transcripts saved in the body', () {
+    final voice = Note(
+      id: 'v',
+      body: '## Transcript\nThe meeting starts after lunch.',
+      audio: const NoteAudio(fileName: 'voice.m4a', durationMs: 1200),
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    final hit = searchNotes([voice], 'meeting').single;
+    expect(hit.note.id, 'v');
+    expect(hit.snippet.toLowerCase(), contains('meeting'));
+  });
 }
