@@ -117,6 +117,9 @@ backup. Say this on the release page or the website once Inkleaf is on Play.
 
 ## Play Console answers
 
+**Store listing.** The app name, short and full description, and screenshot
+rules are in [store-listing.md](store-listing.md).
+
 **Data safety.** The answers come from Google ML Kit, which sends Google
 diagnostics. Inkleaf itself collects nothing. Check them against
 [ML Kit's data disclosure](https://developers.google.com/ml-kit/android/data-disclosure)
