@@ -48,22 +48,37 @@ class ChecklistItem {
 /// A voice recording attached to a note.
 @immutable
 class NoteAudio {
-  const NoteAudio({required this.fileName, required this.durationMs});
+  const NoteAudio({
+    required this.fileName,
+    required this.durationMs,
+    this.transcribed = false,
+  });
 
   /// File name inside `MediaStore.audio.directory`.
   final String fileName;
   final int durationMs;
 
+  /// Whether the recording's words have been added to the note's body.
+  final bool transcribed;
+
   Duration get duration => Duration(milliseconds: durationMs);
+
+  NoteAudio copyWith({bool? transcribed}) => NoteAudio(
+    fileName: fileName,
+    durationMs: durationMs,
+    transcribed: transcribed ?? this.transcribed,
+  );
 
   Map<String, Object?> toJson() => {
     'fileName': fileName,
     'durationMs': durationMs,
+    if (transcribed) 'transcribed': true,
   };
 
   factory NoteAudio.fromJson(Map<String, Object?> json) => NoteAudio(
     fileName: json['fileName']! as String,
     durationMs: json['durationMs'] as int? ?? 0,
+    transcribed: json['transcribed'] as bool? ?? false,
   );
 }
 
