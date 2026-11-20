@@ -11,6 +11,9 @@ import '../../canvas/data/boards_repository.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../lock/data/app_lock.dart';
 import '../../notes/data/notes_repository.dart';
+import '../../record/data/transcriber.dart';
+import '../../record/data/transcription_service.dart';
+import '../../record/presentation/speech_model_dialog.dart';
 
 /// Appearance, search history, a look at what's stored, and about.
 class SettingsScreen extends StatefulWidget {
@@ -122,6 +125,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// Checked again after a download or delete.
+  Future<bool> _modelReady = TranscriptionService.instance.transcriber
+      .modelReady();
+
+  void _recheckModel() {
+    final ready = TranscriptionService.instance.transcriber.modelReady();
+    setState(() {
+      _modelReady = ready;
+    });
+  }
+
+  Future<void> _setAutoTranscribe(bool on) async {
+    if (on && !await ensureSpeechModel(context)) return;
+    await _prefs.setAutoTranscribe(on);
+    if (mounted) _recheckModel();
+  }
+
+  Future<void> _deleteSpeechModel() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete the speech model?'),
+        content: const Text(
+          'This frees ${Transcriber.modelSize}. Transcripts already in your '
+          'notes stay. To transcribe again, Inkleaf downloads the model '
+          'again.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false)) return;
+    await TranscriptionService.instance.transcriber.deleteModel();
+    await _prefs.setAutoTranscribe(false);
+    if (mounted) _recheckModel();
+  }
+
   Future<void> _replayIntro() async {
     await _prefs.resetOnboarding();
     if (mounted) context.go(AppRoutes.onboarding);
@@ -162,6 +210,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onSelectionChanged: (s) => _prefs.setThemeMode(s.single),
               ),
             ),
+          ),
+          const _Section('Voice notes'),
+          SwitchListTile(
+            secondary: const Icon(Icons.subject_rounded),
+            title: const Text('Transcribe new recordings'),
+            subtitle: const Text(
+              'Turn what you say into text you can edit and search. Runs on '
+              'your phone; recordings are never uploaded.',
+            ),
+            value: _prefs.autoTranscribe,
+            onChanged: _setAutoTranscribe,
+          ),
+          FutureBuilder(
+            future: _modelReady,
+            builder: (context, snapshot) {
+              final ready = snapshot.data ?? false;
+              return ListTile(
+                leading: const Icon(Icons.download_done_rounded),
+                title: const Text('Speech model'),
+                subtitle: Text(
+                  ready
+                      ? 'Downloaded (${Transcriber.modelSize}). Tap to delete it.'
+                      : 'Not downloaded. It downloads the first time you '
+                            'transcribe.',
+                ),
+                enabled: ready,
+                onTap: ready ? _deleteSpeechModel : null,
+              );
+            },
           ),
           const _Section('Privacy'),
           SwitchListTile(

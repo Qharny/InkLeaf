@@ -18,6 +18,7 @@ import 'package:my_note/features/notes/data/notes_repository.dart';
 import 'package:my_note/features/canvas/domain/board.dart';
 import 'package:my_note/features/collections/data/collections_repository.dart';
 import 'package:my_note/features/notes/domain/note.dart';
+import 'package:my_note/features/record/data/transcription_service.dart';
 import 'package:my_note/features/record/data/voice_recorder.dart';
 import 'package:my_note/features/reminders/data/reminders.dart';
 import 'package:my_note/features/scan/data/page_scanner.dart';
@@ -25,6 +26,7 @@ import 'package:my_note/features/share/data/share_inbox.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/fake_reminder_scheduler.dart';
+import 'support/fake_transcriber.dart';
 
 Future<void> startApp(
   WidgetTester tester, {
@@ -32,9 +34,16 @@ Future<void> startApp(
   List<Note> notes = const [],
   Future<void> Function()? beforeLaunch,
   FakeReminderScheduler? reminders,
+  FakeTranscriber? transcriber,
+  bool autoTranscribe = false,
 }) async {
+  // Whisper never runs in tests; without a model the app offers a download.
+  TranscriptionService.instance = TranscriptionService(
+    transcriber: transcriber ?? FakeTranscriber(ready: false),
+  );
   SharedPreferences.setMockInitialValues({
     'onboarding_done': onboardingDone,
+    'auto_transcribe': autoTranscribe,
     'notes': jsonEncode([for (final n in notes) n.toJson()]),
   });
   await AppPrefs.init();
@@ -982,6 +991,93 @@ void main() {
       await tester.pageBack();
       await tester.pumpAndSettle();
       expect(NotesRepository.instance.notes, isEmpty);
+    });
+
+    testWidgets('transcribe downloads the model once, then adds the words', (
+      tester,
+    ) async {
+      final transcriber = FakeTranscriber(
+        fallback: 'Pick up the groceries',
+        ready: false,
+      );
+      await startApp(tester, onboardingDone: true, transcriber: transcriber);
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+      expect(transcriber.started, isEmpty, reason: 'off by default');
+
+      // Typing is kept: the words go after it.
+      await tester.enterText(find.byType(TextField).at(1), 'Saturday');
+      await tester.tap(find.text('Transcribe'));
+      await tester.pumpAndSettle();
+      expect(find.text('Download the speech model?'), findsOneWidget);
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+
+      expect(transcriber.downloads, 1);
+      expect(find.text('Saturday\n\nPick up the groceries'), findsOneWidget);
+      expect(find.text('Transcribe'), findsNothing);
+      expect(find.byTooltip('Play recording'), findsOneWidget);
+
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      final note = NotesRepository.instance.notes.single;
+      expect(note.body, 'Saturday\n\nPick up the groceries');
+      expect(note.audio?.transcribed, isTrue);
+      expect(find.textContaining('groceries'), findsOneWidget);
+    });
+
+    testWidgets('with the setting on, new recordings transcribe themselves', (
+      tester,
+    ) async {
+      final transcriber = FakeTranscriber(fallback: 'Call the dentist');
+      await startApp(
+        tester,
+        onboardingDone: true,
+        transcriber: transcriber,
+        autoTranscribe: true,
+      );
+      await openRecorder(tester);
+      await startRecording(tester);
+      await tester.tap(find.byTooltip('Stop and save'));
+      await tester.pumpAndSettle();
+
+      expect(transcriber.started, hasLength(1));
+      expect(find.text('Call the dentist'), findsOneWidget);
+      expect(NotesRepository.instance.notes.single.body, 'Call the dentist');
+    });
+
+    testWidgets('turning on transcription in settings asks to download', (
+      tester,
+    ) async {
+      final transcriber = FakeTranscriber(ready: false);
+      await startApp(tester, onboardingDone: true, transcriber: transcriber);
+      await tester.tap(find.byTooltip('More'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Settings'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Not downloaded'), findsOneWidget);
+
+      await tester.tap(find.text('Transcribe new recordings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Not now'));
+      await tester.pumpAndSettle();
+      expect(AppPrefs.instance.autoTranscribe, isFalse);
+
+      await tester.tap(find.text('Transcribe new recordings'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Download'));
+      await tester.pumpAndSettle();
+      expect(AppPrefs.instance.autoTranscribe, isTrue);
+      expect(find.textContaining('Tap to delete'), findsOneWidget);
+
+      await tester.tap(find.text('Speech model'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete'));
+      await tester.pumpAndSettle();
+      expect(transcriber.ready, isFalse);
+      expect(AppPrefs.instance.autoTranscribe, isFalse);
     });
   });
 

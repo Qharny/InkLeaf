@@ -13,6 +13,9 @@ import '../../../core/utils/relative_time.dart';
 import '../../collections/data/collections_repository.dart';
 import '../../collections/presentation/collection_widgets.dart';
 import '../../home/presentation/home_screen.dart';
+import '../../record/data/transcription_service.dart';
+import '../../record/domain/transcript.dart';
+import '../../record/presentation/speech_model_dialog.dart';
 import '../../reminders/data/reminders.dart';
 import '../../reminders/presentation/reminder_picker.dart';
 import '../data/notes_repository.dart';
@@ -76,10 +79,14 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     // The formatting toolbar shows while writing the body.
     _bodyFocus.addListener(() => setState(() {}));
     WidgetsBinding.instance.addObserver(this);
+    // Transcripts of this note's recording come here while it's open, so
+    // they join whatever is being typed rather than overwrite it.
+    TranscriptionService.instance.attach(_note.id, _onTranscript);
   }
 
   @override
   void dispose() {
+    TranscriptionService.instance.detach(_note.id, _onTranscript);
     WidgetsBinding.instance.removeObserver(this);
     // Closed some way other than popping: save what's left once this frame
     // is done (lists can't rebuild while the tree is being torn down).
@@ -200,6 +207,49 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
     if (!(ok ?? false) || !mounted) return;
     MediaStore.audio.delete(audio.fileName);
     _update(_note.copyWith(audio: () => null), edited: true);
+  }
+
+  Future<void> _transcribe() async {
+    if (!await ensureSpeechModel(context) || !mounted) return;
+    // The service reads the note from the repository.
+    _save();
+    TranscriptionService.instance.transcribe(_note.id);
+  }
+
+  void _onTranscript(TranscriptResult result) {
+    if (!mounted) return;
+    final message = switch (result.outcome) {
+      TranscriptOutcome.done => 'Transcript added. Tap the text to fix it.',
+      TranscriptOutcome.noSpeech => 'No speech was found in the recording',
+      TranscriptOutcome.missingAudio => 'The recording file is missing',
+      TranscriptOutcome.failed => "Couldn't transcribe this recording",
+    };
+    if (result.outcome == TranscriptOutcome.done) {
+      final body = appendTranscript(_body.text, result.text);
+      final selection = _body.selection;
+      _body.value = TextEditingValue(
+        text: body,
+        selection: selection.isValid && selection.end <= body.length
+            ? selection
+            : TextSelection.collapsed(offset: body.length),
+      );
+      _update(
+        _note.copyWith(
+          body: body,
+          audio: () => _note.audio?.copyWith(transcribed: true),
+        ),
+        edited: true,
+      );
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          persist: false,
+          duration: const Duration(seconds: 3),
+          content: Text(message),
+        ),
+      );
   }
 
   Future<void> _removeScan(String fileName) async {
@@ -490,6 +540,12 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
                   onRemove: () => _removeRecording(audio),
                 ),
               ),
+            if (_note.audio case final audio?)
+              _TranscriptStatus(
+                noteId: _note.id,
+                transcribed: audio.transcribed,
+                onTranscribe: _transcribe,
+              ),
             if (_note.sketch.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
@@ -559,6 +615,66 @@ class _NoteEditorScreenState extends State<NoteEditorScreen>
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Under a recording: how far its transcription has got, or a button to
+/// start one. Nothing once the words are in the note.
+class _TranscriptStatus extends StatelessWidget {
+  const _TranscriptStatus({
+    required this.noteId,
+    required this.transcribed,
+    required this.onTranscribe,
+  });
+
+  final String noteId;
+  final bool transcribed;
+  final VoidCallback onTranscribe;
+
+  @override
+  Widget build(BuildContext context) {
+    final service = TranscriptionService.instance;
+    return ListenableBuilder(
+      listenable: service,
+      builder: (context, _) {
+        if (service.isTranscribing(noteId)) {
+          final progress = service.progressOf(noteId);
+          final text = Theme.of(context).textTheme;
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(value: progress),
+                const SizedBox(height: 6),
+                Semantics(
+                  liveRegion: true,
+                  child: Text(
+                    progress == null
+                        ? 'Waiting to transcribe…'
+                        : 'Transcribing on your phone… '
+                              '${(progress * 100).round()}%',
+                    style: text.labelMedium,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        if (transcribed) return const SizedBox.shrink();
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: TextButton.icon(
+              onPressed: onTranscribe,
+              icon: const Icon(Icons.subject_rounded),
+              label: const Text('Transcribe'),
+            ),
+          ),
+        );
+      },
     );
   }
 }

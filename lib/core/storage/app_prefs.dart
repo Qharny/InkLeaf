@@ -18,6 +18,7 @@ class AppPrefs {
   static const _themeModeKey = 'theme_mode';
   static const _appLockKey = 'app_lock';
   static const _starterAddedKey = 'starter_added';
+  static const _autoTranscribeKey = 'auto_transcribe';
   static const _maxRecentSearches = 8;
 
   final SharedPreferences _prefs;
@@ -39,6 +40,13 @@ class AppPrefs {
   bool get appLock => _prefs.getBool(_appLockKey) ?? false;
 
   Future<void> setAppLock(bool value) => _prefs.setBool(_appLockKey, value);
+
+  /// Whether new voice notes are turned into text as soon as they're saved.
+  /// Off until the user turns it on and the speech model is downloaded.
+  bool get autoTranscribe => _prefs.getBool(_autoTranscribeKey) ?? false;
+
+  Future<void> setAutoTranscribe(bool value) =>
+      _prefs.setBool(_autoTranscribeKey, value);
 
   /// Light paper (the default), the night desk, or whatever the system uses.
   late final ValueNotifier<ThemeMode> themeMode = ValueNotifier(
