@@ -1,6 +1,6 @@
 # Inkleaf privacy policy
 
-_Last updated: 12 October 2026_
+_Last updated: 22 November 2026_
 
 Inkleaf is a notebook app. It has no accounts, no ads and no analytics of its
 own. Your notes stay on your phone. This is the same text the app shows under
@@ -30,6 +30,8 @@ needs it, and you can say no and keep using the rest of the app.
 - **Alarms & reminders (Android):** lets reminders arrive on the minute.
 - **Fingerprint or face:** used for the optional app lock. Your phone checks
   it; Inkleaf never sees your fingerprint or face data.
+- **Internet (Android):** used only to download the speech model for voice
+  transcription, when you ask for it. Android grants this without asking.
 
 ## Text recognition (Google ML Kit)
 
@@ -44,6 +46,20 @@ ML Kit features were used, and error and performance figures. It doesn't
 include your notes, photos, recordings or any text. See
 [Google's ML Kit data disclosure](https://developers.google.com/ml-kit/android/data-disclosure)
 and [Google's privacy policy](https://policies.google.com/privacy).
+
+## Voice transcription (Whisper)
+
+Inkleaf can turn your voice recordings into text with Whisper, a speech
+recognition model that runs on your device. It's off until you ask for a
+transcript or turn it on in Settings.
+
+The model is too large to include in the app, so the first time, Inkleaf
+downloads it (about 142 MB) from Hugging Face (huggingface.co). That
+download is the only thing transcription uses the internet for. Your
+recordings and their text are never uploaded. Like any download, the request
+shows Hugging Face your device's IP address; see
+[Hugging Face's privacy policy](https://huggingface.co/privacy). You can
+delete the model under **Settings → Voice notes**.
 
 ## Sharing and backups
 

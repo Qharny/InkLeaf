@@ -38,6 +38,9 @@
   progress like "2/4 done".
 - **Sketches**: draw on a full-screen pad with pens, colors and an eraser.
 - **Voice notes**: record with a live level meter; play back with seeking.
+- **Transcripts**: turn a recording into text you can edit and search, on
+  the phone with Whisper. The speech model (142 MB) downloads the first time
+  you ask; recordings are never uploaded. Can run on every new recording.
 - **Scan pages**: photograph a page or receipt and the text is read on the
   phone (ML Kit), ready to fix up and search. The photo is kept with the note.
 - **Share into Inkleaf**: text, links and photos shared from any app become

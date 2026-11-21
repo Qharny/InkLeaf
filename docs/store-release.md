@@ -136,6 +136,11 @@ before submitting, in case Google has updated it.
 | Users can request deletion? | No; there's no account, and Inkleaf holds no data |
 | Audio, photos, files, messages | **Not collected.** They're processed and stored only on the device |
 
+Voice transcription doesn't change these answers. The only network request
+it makes is downloading the Whisper model from Hugging Face, when the user
+asks; it sends no user data. Recordings are transcribed on the device. This
+is also why the release manifest declares `INTERNET`.
+
 **Other forms.**
 
 | Form | Answer |
