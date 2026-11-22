@@ -6,6 +6,9 @@
     <!-- Reminders: reschedule after a restart, and fire on time. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <!-- Only to download the speech model for transcription, when the user
+         asks. Recordings and notes are never sent. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Inkleaf"
         android:name="${applicationName}"

@@ -6,10 +6,12 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/sketch_styles.dart';
+import '../../../core/storage/app_prefs.dart';
 import '../../../core/storage/media_store.dart';
 import '../../../core/utils/relative_time.dart';
 import '../../notes/data/notes_repository.dart';
 import '../../notes/domain/note.dart';
+import '../data/transcription_service.dart';
 import '../data/voice_recorder.dart';
 
 enum _Phase { idle, recording, paused, denied }
@@ -133,7 +135,18 @@ class _RecordScreenState extends State<RecordScreen> {
               NoteAudio(fileName: name, durationMs: _clock.elapsedMilliseconds),
         );
     repo.save(note);
+    if (AppPrefs.instance.autoTranscribe) unawaited(_autoTranscribe(note.id));
     context.pushReplacement(AppRoutes.noteById(note.id));
+  }
+
+  /// Starts the transcript in the background; the note opens meanwhile and
+  /// shows its progress. Without the speech model (deleted since the
+  /// setting was turned on) the note offers a Transcribe button instead.
+  static Future<void> _autoTranscribe(String noteId) async {
+    final service = TranscriptionService.instance;
+    if (await service.transcriber.modelReady()) {
+      await service.transcribe(noteId);
+    }
   }
 
   @override

@@ -7,7 +7,7 @@ import '../../../app/theme/sketch_styles.dart';
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
-  static const updated = '12 October 2026';
+  static const updated = '22 November 2026';
 
   static const _sections = <(String, List<String>)>[
     (
@@ -37,6 +37,9 @@ class PrivacyPolicyScreen extends StatelessWidget {
         'Alarms & reminders (Android): lets reminders arrive on the minute.',
         'Fingerprint or face: used for the optional app lock. Your phone '
             'checks it; Inkleaf never sees your fingerprint or face data.',
+        'Internet (Android): used only to download the speech model for '
+            'voice transcription, when you ask for it. Android grants this '
+            'without asking.',
       ],
     ),
     (
@@ -53,6 +56,21 @@ class PrivacyPolicyScreen extends StatelessWidget {
             'photos, recordings or any text. More at '
             'developers.google.com/ml-kit/android/data-disclosure and '
             'policies.google.com/privacy.',
+      ],
+    ),
+    (
+      'Voice transcription (Whisper)',
+      [
+        'Inkleaf can turn your voice recordings into text with Whisper, a '
+            'speech recognition model that runs on your device. It is off '
+            'until you ask for a transcript or turn it on in Settings.',
+        'The model is too large to include in the app, so the first time, '
+            'Inkleaf downloads it (about 142 MB) from Hugging Face '
+            '(huggingface.co). That download is the only thing transcription '
+            'uses the internet for. Your recordings and their text are never '
+            'uploaded. Like any download, the request shows Hugging Face your '
+            "device's IP address; see huggingface.co/privacy. You can delete "
+            'the model under Settings → Voice notes.',
       ],
     ),
     (
